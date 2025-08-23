@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id               Int            @id @default(autoincrement())
+  email            String         @unique
+  stripeCustomerId String?        @unique
+  subscriptions    Subscription[]
+  createdAt        DateTime       @default(now())
+}
+
+model Subscription {
+  id                  Int      @id @default(autoincrement())
+  stripeSubscriptionId String   @unique
+  status              String
+  currentPeriodEnd    DateTime?
+  cancelAtPeriodEnd   Boolean  @default(false)
+  userId              Int?
+  user                User?    @relation(fields: [userId], references: [id])
+}
+
+model DunningCase {
+  id              Int      @id @default(autoincrement())
+  stripeInvoiceId String   @unique
+  stripeCustomerId String
+  amountDue       Int
+  currency        String
+  status          String
+  lastReminderAt  DateTime?
+  createdAt       DateTime @default(now())
+  retryAttempts   RetryAttempt[]
+  reminders       DunningReminder[]
+}
+
+model RetryAttempt {
+  id           Int      @id @default(autoincrement())
+  dunningCaseId Int
+  attemptNo    Int
+  runAt        DateTime
+  status       String   @default("queued")
+  note         String?
+  dunningCase  DunningCase @relation(fields: [dunningCaseId], references: [id])
+}
+
+model DunningReminder {
+  id           Int      @id @default(autoincrement())
+  dunningCaseId Int
+  channel      String
+  createdAt    DateTime @default(now())
+  dunningCase  DunningCase @relation(fields: [dunningCaseId], references: [id])
+}
+
+model RecoveryAttribution {
+  id              Int      @id @default(autoincrement())
+  stripeCustomerId String
+  stripeInvoiceId String
+  amountRecovered Int
+  currency        String
+  source          String
+  createdAt       DateTime @default(now())
+}
+
+model Settings {
+  id               Int @id @default(1)
+  dunningBaseHours Int?
+  dunningMaxAttempts Int?
+  safeMode         Boolean @default(false)
+}
+
+model StripeEventLog {
+  id      Int    @id @default(autoincrement())
+  type    String
+  raw     String
+  createdAt DateTime @default(now())
+  eventId String? @unique
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  actor     String?
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+}

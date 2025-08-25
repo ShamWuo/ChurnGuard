@@ -1,6 +1,6 @@
 # Stripe Churn Deflection
 
-Reduce involuntary churn for Stripe‑based products. This app handles failed payments (dunning), offers a self‑serve billing portal, exposes a checkout endpoint, and ships with admin auth, audit logs, health/readiness endpoints, and a small test suite.
+Recover lost revenue from failed payments and reduce involuntary churn with an opinionated, deployable kit for Stripe-powered apps — automated dunning, checkout & billing portal wiring, and an admin console for triage and recovery.
 
 ## What’s inside
 - Next.js 14 + TypeScript
@@ -11,6 +11,8 @@ Reduce involuntary churn for Stripe‑based products. This app handles failed pa
 - Health `/api/health`, Readiness `/api/ready`, Version `/api/version`
 - Prisma ORM (SQLite for dev, Postgres recommended in prod)
 - CI workflow + Jest tests
+
+[![CI](https://github.com/ShamWuo/stripe-micro-saas/actions/workflows/ci.yml/badge.svg)](https://github.com/ShamWuo/stripe-micro-saas/actions/workflows/ci.yml)
 
 ## Setup (Windows PowerShell)
 1) Copy env vars
@@ -27,10 +29,50 @@ npx prisma generate
 npx prisma db push
 ```
 
+Windows/OneDrive note:
+- On Windows, developer tools that generate native binaries (Prisma query engine) can hit file locking or EPERM errors when your project lives inside OneDrive. If you see errors during `npx prisma generate` like "EPERM: operation not permitted, rename ... query_engine-windows.dll.node.tmp", try one of the following:
+	- Run the generate command from a different folder outside OneDrive and copy the generated `node_modules/.prisma` folder back into the project.
+	- Use the Prisma generator setting `engineType = "library"` (already applied in this repo) to reduce binary rename operations.
+	- Move the project outside OneDrive while running `npx prisma generate`.
+	- Run your dev work in WSL or a Linux/macOS environment for a smoother dev experience.
+
 4) Run dev server
 ```
 npm run dev
 ```
+
+## Ready for selling — quick checklist
+
+Before you market or accept paid customers, make sure you complete these production steps:
+
+- Use Postgres in production and run `npx prisma migrate deploy` as part of your deploy pipeline.
+- Store secrets (DATABASE_URL, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, SENTRY_DSN, CRON_SECRET) in a secure secret manager; do not commit them.
+- Enable HTTPS and HSTS for your domain and configure your platform to call `/api/ready` as the readiness check.
+- Configure billing: create Stripe products/prices, wire webhooks, and provide a trials/plan matrix.
+- Add data export and deletion endpoints for GDPR/CCPA compliance and a documented retention policy.
+
+Release checklist (quick)
+-------------------------
+
+- Ensure all unit tests and e2e smoke tests pass in CI (`npm run ci` then `npm run e2e` or the Playwright workflow).
+- Verify `npx prisma generate` runs in CI (use the Playwright workflow template as a guide).
+- Confirm Stripe keys and webhook secret are set in staging and run a full dunning scenario.
+- Update `CHANGELOG.md` with release notes and bump `package.json` version.
+
+CHANGELOG
+---------
+
+Add a `CHANGELOG.md` file and follow Keep a Changelog conventions. Start with an Unreleased section and list the main productization changes (admin safety, export, e2e, CI).
+
+Developer convenience (Windows PowerShell)
+
+For local E2E runs on port 3100 (helps avoid OneDrive file locking on Windows):
+
+```powershell
+$env:ADMIN_SECRET='secret123'; $env:CSRF_SECRET='csrf123'; $env:NEXT_TELEMETRY_DISABLED='1'; npm run dev -- -p 3100
+```
+
+See `.github/CI_SECRETS.md` for CI and scheduled job secrets required by GitHub Actions.
 
 5) Stripe webhook (optional, for local testing)
 	- In another terminal:

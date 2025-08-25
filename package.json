@@ -5,6 +5,9 @@
 	"scripts": {
 		"dev": "next dev",
 		"dev:3100": "next dev -p 3100",
+		"dev:3100:env": "powershell -NoProfile -Command \"$env:ADMIN_SECRET='secret123'; $env:CSRF_SECRET='csrf123'; $env:NEXT_TELEMETRY_DISABLED='1'; npm run dev -- -p 3100\"",
+		"demo": "node scripts/seed-demo.js && npm run dev:3100:env",
+		"seed:demo": "node scripts/seed-demo.js",
 		"build": "next build",
 		"build:clean": "rimraf .next && next build",
 		"start": "next start",
@@ -38,6 +41,7 @@
 		"zod": "^3.23.8"
 	},
 	"devDependencies": {
+		"node-fetch": "^2.6.7",
 		"@playwright/test": "^1.55.0",
 		"@types/jest": "^30.0.0",
 		"@types/jsonwebtoken": "^9.0.2",

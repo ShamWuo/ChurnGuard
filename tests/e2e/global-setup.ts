@@ -1,8 +1,11 @@
 import type { FullConfig } from '@playwright/test';
 
 export default async function globalSetup(config: FullConfig) {
-  if (!process.env.E2E_SKIP_SERVER) return;
-  const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3000';
+  // If E2E_SKIP_SERVER is set, tests should skip waiting for a local server
+  // (useful when CI provides its own server). Otherwise wait for the server.
+  if (process.env.E2E_SKIP_SERVER) return;
+  // Default to 3100 in local dev runs where the helper/dev server binds to that port.
+  const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3100';
   const url = new URL('/api/health', baseURL).toString();
   const deadline = Date.now() + 60_000;
   let lastErr: any = null;

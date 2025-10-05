@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { hasStripeSecrets } from './_helpers';
 
 test('health endpoint ok', async ({ request }) => {
   const res = await request.get('/api/health');
@@ -14,5 +15,7 @@ test('ready endpoint has flags', async ({ request }) => {
   const json = await res.json();
   expect(json).toHaveProperty('ok');
   expect(json).toHaveProperty('db');
-  expect(json).toHaveProperty('stripe');
+  if (hasStripeSecrets()) {
+    expect(json).toHaveProperty('stripe');
+  }
 });

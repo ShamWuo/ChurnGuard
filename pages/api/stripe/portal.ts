@@ -7,10 +7,15 @@ import { withSentryTracing } from '../../../lib/sentry';
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).end('Method Not Allowed');
   const rl = await rateLimitAsync('portal:' + (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'anon'), 10, 60_000);
-  if (!rl.ok) { res.setHeader('RateLimit-Limit', String(rl.limit)); res.setHeader('RateLimit-Remaining', String(rl.remaining)); res.setHeader('RateLimit-Reset', String(Math.floor(rl.resetAt/1000))); return res.status(429).json({ error: 'rate_limited' }); }
+  if (!rl.ok) {
+    res.setHeader('RateLimit-Limit', String(rl.limit));
+    res.setHeader('RateLimit-Remaining', String(rl.remaining));
+    res.setHeader('RateLimit-Reset', String(Math.floor(rl.resetAt / 1000)));
+    return res.status(429).json({ error: 'rate_limited' });
+  }
   res.setHeader('RateLimit-Limit', String(rl.limit));
   res.setHeader('RateLimit-Remaining', String(rl.remaining));
-  res.setHeader('RateLimit-Reset', String(Math.floor(rl.resetAt/1000)));
+  res.setHeader('RateLimit-Reset', String(Math.floor(rl.resetAt / 1000)));
 
   const { customerId } = (req.body || {}) as { customerId?: string };
   if (!customerId || !/^cus_/.test(customerId)) return res.status(400).json({ error: 'invalid_customer' });

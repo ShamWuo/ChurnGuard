@@ -6,3 +6,8 @@ coverage
 *.local
 .env*
 prisma/dev.db
+.DS_Store
+.vscode
+.idea
+dist
+npm-debug.log

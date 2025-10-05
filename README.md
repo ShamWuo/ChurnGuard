@@ -1,6 +1,10 @@
-# Stripe Churn Deflection
+# ChurnGuard
 
-Reduce involuntary churn for Stripe‑based products. This app handles failed payments (dunning), offers a self‑serve billing portal, exposes a checkout endpoint, and ships with admin auth, audit logs, health/readiness endpoints, and a small test suite.
+Recover lost revenue from failed payments and reduce involuntary churn for Stripe-powered SaaS. ChurnGuard ships automated dunning (retries + reminders), recovery attribution, a secure admin console, and production-ready Stripe webhook handling.
+
+> Formerly "Stripe Churn Deflection" – renamed for public release.
+
+See `docs/E2E_AND_SELLING.md` for local e2e instructions and selling/pricing notes.
 
 ## What’s inside
 - Next.js 14 + TypeScript
@@ -11,6 +15,9 @@ Reduce involuntary churn for Stripe‑based products. This app handles failed pa
 - Health `/api/health`, Readiness `/api/ready`, Version `/api/version`
 - Prisma ORM (SQLite for dev, Postgres recommended in prod)
 - CI workflow + Jest tests
+
+[![CI](https://github.com/ShamWuo/ChurnGuard/actions/workflows/ci.yml/badge.svg)](https://github.com/ShamWuo/ChurnGuard/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 ## Setup (Windows PowerShell)
 1) Copy env vars
@@ -27,10 +34,97 @@ npx prisma generate
 npx prisma db push
 ```
 
+Windows/OneDrive note:
+- On Windows, developer tools that generate native binaries (Prisma query engine) can hit file locking or EPERM errors when your project lives inside OneDrive. If you see errors during `npx prisma generate` like "EPERM: operation not permitted, rename ... query_engine-windows.dll.node.tmp", try one of the following:
+	- Run the generate command from a different folder outside OneDrive and copy the generated `node_modules/.prisma` folder back into the project.
+	- Use the Prisma generator setting `engineType = "library"` (already applied in this repo) to reduce binary rename operations.
+	- Move the project outside OneDrive while running `npx prisma generate`.
+	- Run your dev work in WSL or a Linux/macOS environment for a smoother dev experience.
+
 4) Run dev server
 ```
 npm run dev
 ```
+
+## Quick demo
+
+Spin up a safe seeded demo (no real emails/charges) quickly:
+
+Manual one‑liner:
+```powershell
+$env:ADMIN_SECRET="demo_admin_secret"; $env:SAFE_MODE="true"; npm run dev -- -p 3100
+```
+
+Helper script (also seeds if you add -Seed):
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/start-demo.ps1 -Seed
+```
+
+Then open:
+- Admin login: http://localhost:3100/admin-login
+- Public site: http://localhost:3100
+
+See `DEMO_QUICKSTART.md` for the shortest flow and `DEMO.md` for a narrated sales/demo script.
+
+## Ready for selling — quick checklist
+
+Before you market or accept paid customers, make sure you complete these production steps:
+
+- Use Postgres in production and run `npx prisma migrate deploy` as part of your deploy pipeline.
+- Store secrets (DATABASE_URL, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, SENTRY_DSN, CRON_SECRET) in a secure secret manager; do not commit them.
+- Enable HTTPS and HSTS for your domain and configure your platform to call `/api/ready` as the readiness check.
+- Configure billing: create Stripe products/prices, wire webhooks, and provide a trials/plan matrix.
+- Add data export and deletion endpoints for GDPR/CCPA compliance and a documented retention policy.
+
+See `PRODUCTION_CHECKLIST.md` for a concise, ordered checklist to prepare a production deploy.
+
+Release checklist (quick)
+-------------------------
+
+- Ensure all unit tests and e2e smoke tests pass in CI (`npm run ci` then `npm run e2e` or the Playwright workflow).
+- Verify `npx prisma generate` runs in CI (use the Playwright workflow template as a guide).
+- Confirm Stripe keys and webhook secret are set in staging and run a full dunning scenario.
+- Update `CHANGELOG.md` with release notes and bump `package.json` version.
+
+CHANGELOG
+---------
+
+Add a `CHANGELOG.md` file and follow Keep a Changelog conventions. Start with an Unreleased section and list the main productization changes (admin safety, export, e2e, CI).
+
+Developer convenience (Windows PowerShell)
+
+For local E2E runs on port 3100 (helps avoid OneDrive file locking on Windows):
+
+```powershell
+$env:ADMIN_SECRET='secret123'; $env:CSRF_SECRET='csrf123'; $env:NEXT_TELEMETRY_DISABLED='1'; npm run dev -- -p 3100
+```
+
+Quick Windows helper
+--------------------
+
+If you're on Windows and want a small convenience wrapper that sets the recommended
+env vars and starts Next on a fixed port, use the PowerShell helper included in
+this repo:
+
+```powershell
+.\scripts\start-dev-win.ps1 -Port 3100 -AdminSecret 'secret123' -CsrfSecret 'csrf123'
+```
+
+OneDrive `.next` / readlink errors
+----------------------------------
+
+If Next fails during startup with errors like `EINVAL: invalid argument, readlink` or
+Prisma shows `EPERM` while generating binaries, it's often caused by OneDrive
+file sync interference. Quick remedies:
+
+- Delete the `.next` folder and restart (the helper above does not remove it).
+- Move the repo outside OneDrive while doing first-time builds or run in WSL.
+- Run `npx prisma generate` from a non-OneDrive folder and copy `node_modules/.prisma`
+	back into place.
+
+These steps are harmless and only affect local developer convenience on Windows.
+
+See `.github/CI_SECRETS.md` for CI and scheduled job secrets required by GitHub Actions.
 
 5) Stripe webhook (optional, for local testing)
 	- In another terminal:
@@ -95,6 +189,7 @@ npm test
 ```
 
 On CI we run unit tests and Playwright e2e.
+Note: Playwright billing tests are skipped unless Stripe secrets are provided in CI. To enable them, add `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` as GitHub Actions secrets and set `PLAYWRIGHT_RUN_BILLING=true` in the workflow env.
 ### End-to-end tests (Playwright)
 
 Local run (stable on Windows OneDrive: run against dev server on port 3100):
@@ -126,36 +221,54 @@ Environment variables are listed in `.env.example`. Important: set `STRIPE_PRICE
 
 ## Production notes: Postgres & migrations
 
-This project uses Prisma. For production you should run Postgres and apply migrations.
+This project uses Prisma. For production you should use Postgres (not SQLite).
 
-Recommended steps:
+Quick steps:
 
-1. Create a Postgres database and set `DATABASE_URL=postgresql://USER:PASS@HOST:5432/dbname`.
-2. Update `prisma/schema.prisma` if needed and generate the client.
-3. Run:
+1. Provision Postgres and set environment variables:
+
+	 - PRISMA_DB_PROVIDER=postgresql
+	 - DATABASE_URL=postgresql://USER:PASS@HOST:5432/DBNAME?schema=public
+
+2. Generate the client and create migrations locally (development):
 
 ```powershell
 npx prisma generate
 npx prisma migrate dev --name init
 ```
 
-4. Deploy migrations to production with `npx prisma migrate deploy` and ensure `DATABASE_URL` is set in your production env (Vercel, etc.).
+3. Commit the generated migration SQL files, push to your repo, and in
+	 production run:
 
-Deployment tips:
-- Protect webhooks and cron. For Stripe, set `STRIPE_WEBHOOK_SECRET` and use the Stripe CLI to test locally.
-- Use `/api/ready` in your platform health checks.
-- Consider setting `SAFE_MODE=true` for the initial production deploy, then disable it when you’re confident.
+```powershell
+npx prisma generate
+npx prisma migrate deploy
+```
 
-If you want, I can help wire a Postgres database service and a minimal Vercel config.
+4. Ensure `npx prisma generate` runs as part of your CI/deploy so the
+	 generated Prisma client exists in the deployed artifact.
+
+Notes:
+- Do not run the app on SQLite in production; it's not safe for concurrent
+	writes or backups.
+- Protect webhooks and cron endpoints (set `STRIPE_WEBHOOK_SECRET` and
+	`CRON_SECRET`) and use `/api/ready` for platform readiness checks.
+- Consider setting `SAFE_MODE=true` for the first production deploy while
+	you validate behavior, then disable it.
+
+If you want, I can help create a minimal Vercel/Render deploy config and show
+how to wire a managed Postgres instance.
 
 ## Docker
 
 Build and run locally:
 
 ```powershell
-docker build -t stripe-churn .
-docker run --rm -p 3000:3000 --env-file .env.local stripe-churn
+docker build -t churnguard .
+docker run --rm -p 3000:3000 --env-file .env.local churnguard
 ```
+
+CI smoke: a GitHub Actions workflow `docker-build-smoke.yml` will build the production image and run basic readiness/health checks on merges to `main`.
 
 ## Postgres & Redis (optional)
 
@@ -167,6 +280,26 @@ docker compose up -d db redis
 # And optionally set REDIS_URL=redis://localhost:6379
 npx prisma generate
 npx prisma migrate dev --name init
+```
+
+Quick docker-compose dev helper
+
+This repo includes `docker-compose.dev.yml` which provides a simple local
+Postgres + Redis setup for development. To use it:
+
+```powershell
+docker compose -f docker-compose.dev.yml up -d
+$env:PRISMA_DB_PROVIDER='postgresql';
+$env:DATABASE_URL='postgresql://app:app@localhost:5432/app?schema=public';
+npx prisma generate
+npx prisma migrate dev --name init
+npm run dev
+```
+
+When finished:
+
+```powershell
+docker compose -f docker-compose.dev.yml down -v
 ```
 
 ## Backfill recovered revenue (optional)

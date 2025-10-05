@@ -7,8 +7,10 @@ generator client {
 }
 
 datasource db {
+  // NOTE: For local development we use SQLite. For production swap this to
+  // provider = "postgresql" and set DATABASE_URL to a Postgres connection.
   provider = "sqlite"
-  url      = "file:./dev.db"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -17,6 +19,7 @@ model User {
   stripeCustomerId String?        @unique
   subscriptions    Subscription[]
   createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 }
 
 model Subscription {
@@ -26,7 +29,11 @@ model Subscription {
   currentPeriodEnd    DateTime?
   cancelAtPeriodEnd   Boolean  @default(false)
   userId              Int?
-  user                User?    @relation(fields: [userId], references: [id])
+  user                User?    @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model DunningCase {
@@ -38,8 +45,11 @@ model DunningCase {
   status          String
   lastReminderAt  DateTime?
   createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
   retryAttempts   RetryAttempt[]
   reminders       DunningReminder[]
+
+  @@index([stripeCustomerId])
 }
 
 model RetryAttempt {
@@ -47,9 +57,11 @@ model RetryAttempt {
   dunningCaseId Int
   attemptNo    Int
   runAt        DateTime
-  status       String   @default("queued")
+  status       String   @default("QUEUED")
   note         String?
-  dunningCase  DunningCase @relation(fields: [dunningCaseId], references: [id])
+  dunningCase  DunningCase @relation(fields: [dunningCaseId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([dunningCaseId])
 }
 
 model DunningReminder {
@@ -57,7 +69,9 @@ model DunningReminder {
   dunningCaseId Int
   channel      String
   createdAt    DateTime @default(now())
-  dunningCase  DunningCase @relation(fields: [dunningCaseId], references: [id])
+  dunningCase  DunningCase @relation(fields: [dunningCaseId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([dunningCaseId])
 }
 
 model RecoveryAttribution {
@@ -68,6 +82,9 @@ model RecoveryAttribution {
   currency        String
   source          String
   createdAt       DateTime @default(now())
+
+  @@index([stripeCustomerId])
+  @@unique([stripeInvoiceId, source])
 }
 
 model Settings {
@@ -75,6 +92,7 @@ model Settings {
   dunningBaseHours Int?
   dunningMaxAttempts Int?
   safeMode         Boolean @default(false)
+  updatedAt        DateTime @updatedAt
 }
 
 model StripeEventLog {
@@ -83,6 +101,8 @@ model StripeEventLog {
   raw     String
   createdAt DateTime @default(now())
   eventId String? @unique
+
+  @@index([type, createdAt])
 }
 
 model AuditLog {
@@ -91,6 +111,8 @@ model AuditLog {
   action    String
   details   String?
   createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model CspReport {
@@ -99,8 +121,17 @@ model CspReport {
   doc      String?
   blocked  String?
   ua       String?
-  raw      String? 
+  raw      String?
   headers  String?
   deletedAt DateTime?
   createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
+
+// Typed enums (compatible with SQLite and Postgres). These give stronger
+// typing in the Prisma client and help avoid magic strings in application code.
+
+// Note: enums are provided to the application via `lib/enums` so local dev
+// can continue to use SQLite while the code benefits from typed enum values.
+

@@ -1,53 +1,66 @@
 name: Playwright E2E
-on: [push, pull_request]
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >
-          --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 5
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Install
+      - name: Install deps
         run: npm ci
-      - name: Prisma generate
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      - name: Generate Prisma client
         run: npx prisma generate
-      - name: Start dev server
-        run: |
-          export ADMIN_SECRET=secret123
-          export CSRF_SECRET=csrf123
-          export NEXT_TELEMETRY_DISABLED=1
-          npm run dev &
-          npx wait-on http://localhost:3000/api/ready --timeout 60000
-      - name: Compute billing-run flag
-        run: |
-          # If repository secrets STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET are set for this job,
-          # they will appear in the environment; tests will source PLAYWRIGHT_RUN_BILLING from the file below.
-          if [ -n "$STRIPE_SECRET_KEY" ] && [ -n "$STRIPE_WEBHOOK_SECRET" ]; then
-            echo "PLAYWRIGHT_RUN_BILLING=true" > playwright_env
-          else
-            echo "PLAYWRIGHT_RUN_BILLING=false" > playwright_env
-          fi
-      - name: Run Playwright
-        run: |
-          set -o allexport; source playwright_env || true; set +o allexport
-          npx playwright test --project=chromium --reporter=list
+      - name: Prepare schema
         env:
-          E2E_BASE_URL: http://localhost:3000
-          ADMIN_SECRET: secret123
-          CRON_SECRET: cronsecret123
-          ENABLE_DESTRUCTIVE_DELETES: '1'
-          # PLAYWRIGHT_RUN_BILLING will be exported from the sourced file at runtime
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -n "${DATABASE_URL}" ]; then
+            echo "DATABASE_URL present — running migrations"
+            npx prisma migrate deploy
+          else
+            echo "No DATABASE_URL — using prisma db push for SQLite"
+            npx prisma db push
+          fi
+      - name: Build
+        run: npm run build
+      - name: Start server (production)
+        env:
+          ADMIN_SECRET: ${{ secrets.ADMIN_SECRET }}
+          CSRF_SECRET: ${{ secrets.CSRF_SECRET }}
+          NEXT_TELEMETRY_DISABLED: '1'
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          npm run start &
+          # wait for health
+          for i in {1..30}; do
+            if curl -sS http://localhost:3000/api/health >/dev/null 2>&1; then echo ready; break; fi
+            sleep 1
+          done
+      - name: Run Playwright tests
+        env:
+          ADMIN_SECRET: ${{ secrets.ADMIN_SECRET }}
+          CSRF_SECRET: ${{ secrets.CSRF_SECRET }}
+          NEXT_TELEMETRY_DISABLED: '1'
+          E2E_USE_DEV: '0'
+          E2E_BASE_URL: 'http://localhost:3000'
+          # Optional Stripe test secrets for billing tests; set in repo settings to enable billing e2e
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          PLAYWRIGHT_RUN_BILLING: ${{ secrets.PLAYWRIGHT_RUN_BILLING }}
+        run: npx playwright test --reporter=list
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report

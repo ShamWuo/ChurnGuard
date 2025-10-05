@@ -42,6 +42,9 @@ export default withSentryTracing(withLogging(async function handler(req: NextApi
       },
       create: { id: 1, dunningBaseHours: dunningBaseHours ?? null, dunningMaxAttempts: dunningMaxAttempts ?? null, safeMode: !!safeMode },
     });
+    try {
+      await pdb.auditLog.create({ data: { actor: 'admin', action: 'settings:update', details: JSON.stringify({ dunningBaseHours, dunningMaxAttempts, safeMode }) } });
+    } catch (e) { /* ignore audit failures */ }
     res.json(s);
     return;
   }

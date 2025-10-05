@@ -1,15 +1,11 @@
-// Prisma client loader: if you generated the client, import it; otherwise provide helpful error during runtime.
 let prismaClient: any = null;
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { PrismaClient } = require('@prisma/client');
   prismaClient = new PrismaClient();
 } catch (e: any) {
-  // Helpful diagnostics for a common Windows/OneDrive problem when Prisma
-  // fails to generate or load native engines (EPERM on rename).
   const cwd = (process.cwd && process.cwd()) || '';
   const isOneDrive = typeof cwd === 'string' && /onedrive/i.test(cwd);
-
   const allowDummy = String(process.env.PRISMA_ALLOW_DUMMY || '').toLowerCase() === '1';
 
   const baseMsg = 'Prisma client not found or failed to load; falling back to a lightweight in-memory shim.';
@@ -27,12 +23,10 @@ try {
   suggestionLines.forEach((l) => console.warn(l));
 
   if (!allowDummy) {
-    // Still provide the shim so the app can run in most dev/test flows, but
-    // make the bypass opt-in to ensure developers see the warning above.
-    console.warn('No env PRISMA_ALLOW_DUMMY=1 set. The app will continue using the dummy shim for now.');
+    console.error('PRISMA client failed to load and PRISMA_ALLOW_DUMMY!=1. Aborting startup.');
+    throw e;
   }
 
-  // Fallback dummy for environments without generated client (tests/local)
   class DummyModel {
     create() { return Promise.resolve({}); }
     findFirst() { return Promise.resolve(null); }

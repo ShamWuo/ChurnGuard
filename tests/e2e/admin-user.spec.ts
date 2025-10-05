@@ -60,12 +60,11 @@ test.describe('admin user operations', () => {
   });
 });
 // Simple integration: call API endpoints directly against test server URL using Playwright's request fixture.
-// In CI this can be run with E2E_USE_DEV=1 and running the dev server.
+// Default to port 3100 for local dev runs (Playwright helper/dev server uses 3100).
+const BASE = process.env.E2E_BASE_URL || 'http://localhost:3100';
 
-const BASE = process.env.E2E_BASE_URL || 'http://localhost:3000';
-
-test('delete-user dry-run via CRON_SECRET', async (fixtures: any) => {
-  const req = fixtures.request as any;
+test('delete-user dry-run via CRON_SECRET', async ({ request }: any) => {
+  const req = request as any;
   process.env.CRON_SECRET = process.env.CRON_SECRET || 'cron123';
 
   // Wait for server readiness endpoint before sending direct requests to avoid ECONNREFUSED

@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client')
+const enums = require('../lib/enums')
 
 const prisma = new PrismaClient()
 
@@ -20,7 +21,7 @@ async function main() {
       email: 'alice@example.com',
       stripeCustomerId: 'cus_demo_alice',
       subscriptions: {
-        create: [{ stripeSubscriptionId: 'sub_demo_alice_1', status: 'active' }],
+  create: [{ stripeSubscriptionId: 'sub_demo_alice_1', status: enums.SubscriptionStatus.active }],
       },
     },
   })
@@ -32,7 +33,7 @@ async function main() {
       email: 'bob@example.com',
       stripeCustomerId: 'cus_demo_bob',
       subscriptions: {
-        create: [{ stripeSubscriptionId: 'sub_demo_bob_1', status: 'past_due' }],
+  create: [{ stripeSubscriptionId: 'sub_demo_bob_1', status: enums.SubscriptionStatus.past_due }],
       },
     },
   })
@@ -46,14 +47,14 @@ async function main() {
       stripeCustomerId: 'cus_demo_bob',
       amountDue: 499,
       currency: 'usd',
-      status: 'open',
+  status: enums.DunningStatus.failed,
       retryAttempts: {
         create: [
-          { attemptNo: 1, runAt: new Date(Date.now() - 1000 * 60 * 60 * 24), status: 'failed', note: 'Card declined' },
+          { attemptNo: 1, runAt: new Date(Date.now() - 1000 * 60 * 60 * 24), status: enums.RetryAttemptStatus.error, note: 'Card declined' },
         ],
       },
       reminders: {
-        create: [{ channel: 'email' }],
+  create: [{ channel: enums.DunningChannel.email }],
       },
     },
   })
@@ -67,7 +68,7 @@ async function main() {
         stripeInvoiceId: 'in_demo_alice_1',
         amountRecovered: 999,
         currency: 'usd',
-        source: 'manual-backfill',
+  source: enums.RecoverySource.manual,
       },
     });
   }

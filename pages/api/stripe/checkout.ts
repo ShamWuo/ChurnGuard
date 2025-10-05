@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import Stripe from 'stripe'
+import { logAudit } from '../../../lib/audit'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', { apiVersion: '2023-10-16' })
 
@@ -16,6 +17,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/?checkout=success`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/?checkout=cancel`,
     })
+    try {
+      // record checkout initiation for auditing and metrics
+      await logAudit('system', 'billing:checkout_started', { sessionId: session.id, price: effectivePrice });
+    } catch (e) {
+      // swallow - non-critical
+      console.warn('failed to log checkout start', e);
+    }
     return res.status(200).json({ url: session.url })
   } catch (err: any) {
     console.error('checkout error', err)

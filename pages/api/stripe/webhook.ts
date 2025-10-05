@@ -5,6 +5,7 @@ import { stripe } from '../../../lib/stripe';
 import { sendMail } from '../../../lib/email';
 import { failedPaymentEmail } from '../../../lib/emailTemplates';
 import prisma from '../../../lib/prisma';
+import { DunningStatus, RecoverySource } from '../../../lib/enums';
 import { rateLimit } from '../../../lib/rateLimit';
 import { captureError, withSentryTracing } from '../../../lib/sentry';
 import { withLogging } from '../../../lib/logger';
@@ -44,8 +45,12 @@ export async function handleStripeEvent(event: Stripe.Event) {
 			const invoice = event.data.object as Stripe.Invoice;
 			const stripeCustomerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
 			if (stripeCustomerId) {
-				await pdb.recoveryAttribution.create({ data: { stripeCustomerId, stripeInvoiceId: invoice.id, amountRecovered: invoice.amount_paid || 0, currency: (invoice.currency || 'usd').toUpperCase(), source: 'retry' } });
-				await pdb.dunningCase.updateMany({ where: { stripeInvoiceId: invoice.id }, data: { status: 'recovered' } });
+				await pdb.recoveryAttribution.create({ data: { stripeCustomerId, stripeInvoiceId: invoice.id, amountRecovered: invoice.amount_paid || 0, currency: (invoice.currency || 'usd').toUpperCase(), source: RecoverySource.retry } });
+				await pdb.dunningCase.updateMany({ where: { stripeInvoiceId: invoice.id }, data: { status: DunningStatus.recovered } });
+				// Write an audit entry so recovered revenue and founder-slot counting can rely on a canonical log
+				try {
+					await pdb.auditLog.create({ data: { actor: 'system', action: 'billing:purchase', details: JSON.stringify({ invoiceId: invoice.id, customerId: stripeCustomerId, amount: invoice.amount_paid || 0, currency: (invoice.currency || 'usd').toUpperCase() }) } });
+				} catch (e) { console.warn('failed to write billing:purchase audit', e); }
 			}
 			return;
 		}
@@ -66,7 +71,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
 	const sig = req.headers['stripe-signature'] as string | undefined;
 	const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-	// Allow local dev without signature (POST raw JSON)
 	let event: any;
 	try {
 		const buf = await getRawBody(req as any);
@@ -108,7 +112,7 @@ async function ensureDunningCase(invoice: Stripe.Invoice) {
 	const currency = invoice.currency?.toUpperCase() || 'USD';
 	const existing = await pdb.dunningCase.findUnique({ where: { stripeInvoiceId } });
 	if (existing) return existing;
-	const created = await pdb.dunningCase.create({ data: { stripeInvoiceId, stripeCustomerId, amountDue, currency, status: 'failed' } });
+	const created = await pdb.dunningCase.create({ data: { stripeInvoiceId, stripeCustomerId, amountDue, currency, status: DunningStatus.failed } });
 
 	try {
 		const user = await pdb.user.findFirst({ where: { stripeCustomerId } });

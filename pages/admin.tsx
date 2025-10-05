@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useToast, useConfirm, usePrompt } from './_app';
 import { GetServerSideProps } from 'next';
 import jwt from 'jsonwebtoken';
 
@@ -13,6 +14,11 @@ export default function Admin() {
   const [recovered, setRecovered] = useState<any | null>(null);
   const [retentionDays, setRetentionDays] = useState<number>(30);
   const [purgeResult, setPurgeResult] = useState<any | null>(null);
+  const [founderSlots, setFounderSlots] = useState<{ total: number; used: number; remaining: number } | null>(null);
+  const [founderInvoice, setFounderInvoice] = useState('');
+  const [founderCustomer, setFounderCustomer] = useState('');
+  const [markingFounder, setMarkingFounder] = useState(false);
+  const [founderMarkResult, setFounderMarkResult] = useState<string | null>(null);
 
   // map form state
   const [email, setEmail] = useState("");
@@ -21,13 +27,23 @@ export default function Admin() {
   const [csrf, setCsrf] = useState<string | null>(null);
 
   useEffect(() => {
-  fetch('/api/admin/dunning-list').then(r => r.json()).then(j => setCases(j.cases || []));
-  fetch('/api/admin/csrf').then(r => r.json()).then(j => setCsrf(j.token)).catch(() => setCsrf(null));
-  fetch('/api/admin/audit-list?page=1&pageSize=20').then(r => r.json()).then(j => setAudit({ ...j, action: '', actor: '' }));
-  fetch('/api/admin/recovered').then(r => r.json()).then(j => setRecovered(j)).catch(() => setRecovered(null));
-  fetch('/api/admin/settings').then(r => r.json()).then(s => setSettings({ dunningBaseHours: s?.dunningBaseHours ?? '', dunningMaxAttempts: s?.dunningMaxAttempts ?? '', safeMode: !!s?.safeMode }));
-  fetch('/api/ready').then(r => r.json()).then(setReady).catch(() => setReady({ ok: false }));
+  refreshAll();
+  const interval = setInterval(refreshAll, 30000);
+  return () => clearInterval(interval);
   }, []);
+
+  async function refreshAll() {
+    try { const d = await (await fetch('/api/admin/dunning-list')).json(); setCases(d.cases || []); } catch {};
+    try { const c = await (await fetch('/api/admin/csrf')).json(); setCsrf(c.token); } catch { setCsrf(null); };
+    try { const a = await (await fetch('/api/admin/audit-list?page=1&pageSize=20')).json(); setAudit({ ...a, action: '', actor: '' }); } catch {};
+    try { const r = await (await fetch('/api/admin/recovered')).json(); setRecovered(r); } catch { setRecovered(null); };
+    try { const s = await (await fetch('/api/admin/settings')).json(); setSettings({ dunningBaseHours: s?.dunningBaseHours ?? '', dunningMaxAttempts: s?.dunningMaxAttempts ?? '', safeMode: !!s?.safeMode }); } catch {};
+    try { const fs = await (await fetch('/api/promo/founder-slots')).json(); setFounderSlots(fs); } catch { setFounderSlots(null); };
+    try { const rdy = await (await fetch('/api/ready')).json(); setReady(rdy); } catch { setReady({ ok: false }); };
+  }
+  const toast = useToast();
+  const confirm = useConfirm();
+  const prompt = usePrompt();
 
   async function runDunning() {
     setRunning(true);
@@ -57,16 +73,16 @@ export default function Admin() {
     try {
   const r = await fetch('/api/admin/template-preview', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(csrf ? { 'x-csrf-token': csrf } : {}) }, body: JSON.stringify({ kind: 'reminder' }) });
       const j = await r.json();
-      alert('Template preview subject:\n' + j.subject);
-    } catch (e: any) { alert(e.message || 'error'); }
+  toast?.('Template preview: ' + j.subject);
+  } catch (e: any) { toast?.(e.message || 'error'); }
   }
 
   async function simulateWebhook() {
     try {
   const r = await fetch('/api/admin/simulate-webhook', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(csrf ? { 'x-csrf-token': csrf } : {}) }, body: JSON.stringify({ type: 'invoice.payment_failed', data: { object: { id: 'in_123', customer: 'cus_test' } } }) });
       const j = await r.json();
-      alert('Simulated: ' + JSON.stringify(j));
-    } catch (e: any) { alert(e.message || 'error'); }
+  toast?.('Simulated webhook (see logs)');
+  } catch (e: any) { toast?.(e.message || 'error'); }
   }
 
   // New admin user operations: export CSV and delete (dry-run + confirm)
@@ -140,6 +156,12 @@ export default function Admin() {
       {ready && (
         <section className="panel mb-16">
           <h2>Status</h2>
+      {!ready.stripe && (
+            <div className="mt-4" style={{ padding: 12, background: '#fff7ed', border: '1px solid #fed7aa' }}>
+              <strong>Stripe not configured.</strong> Set STRIPE_SECRET_KEY (and STRIPE_WEBHOOK_SECRET for webhooks) to enable checkout, portal, and billing flows. See
+        {' '}<a className="mono" href="/docs/stripe-setup" target="_blank" rel="noreferrer">Stripe setup guide</a>.
+            </div>
+          )}
           <div className="flex wrap">
             <Badge label="App" ok={!!ready.ok} />
             <Badge label="DB" ok={!!ready.db} />
@@ -177,6 +199,47 @@ export default function Admin() {
                 </div>
               </div>
             ) : <em>Loading metrics...</em>}
+          <div className="mt-8">
+            <h3>Founder slots</h3>
+              {founderSlots ? (
+              <div>
+                <div className="panel mb-4">{founderSlots.remaining} of {founderSlots.total} remaining <button className="btn small ml-4" onClick={async () => { const fs = await (await fetch('/api/promo/founder-slots')).json(); setFounderSlots(fs); }}>Refresh</button></div>
+                <div className="grid">
+                  <label className="mt-2">Invoice ID
+                    <input aria-label="Invoice ID" className="input" placeholder="inv_..." value={founderInvoice} onChange={(e) => setFounderInvoice(e.target.value)} />
+                  </label>
+                  <label className="mt-2">Customer ID
+                    <input aria-label="Customer ID" className="input" placeholder="cus_... (optional)" value={founderCustomer} onChange={(e) => setFounderCustomer(e.target.value)} />
+                  </label>
+                  <div className="mt-2">
+                    <button className="btn" disabled={!founderInvoice || markingFounder} onClick={async () => {
+                      if (!founderInvoice) { toast?.('Invoice id required'); return; }
+                      const ok = await confirm('Mark invoice ' + founderInvoice + ' as founder purchase?');
+                      if (!ok) return;
+                      setMarkingFounder(true);
+                      try {
+                        const r = await fetch('/api/admin/mark-founder', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(csrf ? { 'x-csrf-token': csrf } : {}) }, body: JSON.stringify({ invoiceId: founderInvoice, customerId: founderCustomer }) });
+                        const j = await r.json();
+                        if (j.ok) {
+                          toast?.('Marked as founder purchase');
+                          setFounderSlots(fs => fs ? { ...fs, used: fs.used + 1, remaining: Math.max(0, fs.remaining - 1) } : fs);
+                          setFounderInvoice(''); setFounderCustomer('');
+                          setFounderMarkResult('Marked successfully');
+                        } else {
+                          toast?.('Failed: ' + (j.error || 'error'));
+                          setFounderMarkResult('Failed: ' + (j.error || 'error'));
+                        }
+                      } catch (e: any) {
+                        toast?.(e?.message || 'Network error');
+                        setFounderMarkResult(e?.message || 'Network error');
+                      } finally { setMarkingFounder(false); setTimeout(() => setFounderMarkResult(null), 4000); }
+                    }}>{markingFounder ? 'Marking...' : 'Mark founder purchase'}</button>
+                    {founderMarkResult && <div className="mt-2 mono">{founderMarkResult}</div>}
+                  </div>
+                </div>
+              </div>
+            ) : <em>Loading...</em>}
+          </div>
           </div>
           <div className="mt-8">
             <h3>Purge soft-deleted CSP reports</h3>
@@ -199,7 +262,7 @@ export default function Admin() {
               ) : <em>No keys</em>}
             </div>
           </div>
-          <form method="post" action="/api/admin/cache-purge" onSubmit={(e)=>{ if(!confirm('Purge analytics cache?')) e.preventDefault(); }} className="mt-12">
+          <form method="post" action="/api/admin/cache-purge" onSubmit={async (e)=>{ if(!(await confirm('Purge analytics cache?'))) e.preventDefault(); }} className="mt-12">
             <input type="hidden" name="scope" value="metrics" />
             {csrf && <input type="hidden" name="x-csrf-token" value={csrf} />}
             <button className="btn" type="submit">Purge metrics cache</button>
@@ -262,7 +325,7 @@ export default function Admin() {
           <button className="btn ml-4" onClick={() => deleteUserTarget(email, true)}>Delete (dry-run)</button>
           <button className="btn ml-4" onClick={async () => {
             if (!email) { setUserOpMsg('Enter email first'); return; }
-            const typed = window.prompt(`Type the email ${email} to confirm deletion:`);
+            const typed = await prompt(`Type the email ${email} to confirm deletion:`, email);
             if (typed === email) {
               deleteUserTarget(email, false);
             } else {
@@ -292,7 +355,7 @@ export default function Admin() {
 
       <section className="mt-24">
         <h2>Settings</h2>
-  <form onSubmit={async (e) => { e.preventDefault(); const res = await fetch('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(csrf ? { 'x-csrf-token': csrf } : {}) }, body: JSON.stringify({ dunningBaseHours: Number(settings.dunningBaseHours)||null, dunningMaxAttempts: Number(settings.dunningMaxAttempts)||null, safeMode: !!settings.safeMode }) }); const j = await res.json(); alert('Saved'); }} className="grid max-w-400">
+  <form onSubmit={async (e) => { e.preventDefault(); const res = await fetch('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(csrf ? { 'x-csrf-token': csrf } : {}) }, body: JSON.stringify({ dunningBaseHours: Number(settings.dunningBaseHours)||null, dunningMaxAttempts: Number(settings.dunningMaxAttempts)||null, safeMode: !!settings.safeMode }) }); const j = await res.json(); toast?.('Settings saved'); }} className="grid max-w-400">
           <label>Base Hours <input type="number" value={settings.dunningBaseHours} onChange={(e) => setSettings({ ...settings, dunningBaseHours: e.target.value })} /></label>
           <label>Max Attempts <input type="number" value={settings.dunningMaxAttempts} onChange={(e) => setSettings({ ...settings, dunningMaxAttempts: e.target.value })} /></label>
           <label><input type="checkbox" checked={settings.safeMode} onChange={(e) => setSettings({ ...settings, safeMode: e.target.checked })} /> Safe Mode (no emails or charges)</label>

@@ -1,3 +1,10 @@
+// Ensure a default DATABASE_URL in test environment so PrismaClient does not throw
+// when the test suite forgets to provide one. We purposely point at the existing
+// dev SQLite file which is committed for lightweight, side‑effect free reads.
+if (process.env.NODE_ENV === 'test' && !process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = 'file:./prisma/dev.db';
+}
+
 let prismaClient: any = null;
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires

@@ -7,6 +7,12 @@ All notable changes to this project will be documented in this file.
 - Docker: production Dockerfile hardened and smoke workflow added.
 - Docs: `PRODUCTION_CHECKLIST.md`, `CI_SECRETS.md` updates, README improvements.
 
+## [1.0.1] - 2025-10-05
+### Fixed
+- Test stability: provide default `DATABASE_URL` in test environment to prevent Prisma initialization errors causing analytics & audit tests to fail.
+### Internal
+- Minor build verification and release automation prep.
+
 ## [1.0.0] - 2025-10-04
 ### Added
 - Initial public release under new name ChurnGuard.

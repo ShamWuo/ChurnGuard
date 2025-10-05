@@ -1,0 +1,32 @@
+name: Manual staging deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Environment (staging|demo)'
+        required: false
+        default: 'staging'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Deploy to Vercel (manual)
+        if: ${{ secrets.VERCEL_TOKEN != '' }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          npx vercel --token $VERCEL_TOKEN --prod --confirm
+    

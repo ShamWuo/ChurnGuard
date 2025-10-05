@@ -33,10 +33,7 @@ export default defineConfig({
     baseURL: process.env.E2E_BASE_URL || (useDevServer ? 'http://localhost:3100' : 'http://localhost:3000'),
     trace: 'on-first-retry',
     video: 'retain-on-failure',
-    env: {
-      ADMIN_SECRET: process.env.ADMIN_SECRET || 'test_admin_secret',
-      CSRF_SECRET: process.env.CSRF_SECRET || 'test_csrf_secret',
-    },
+  // env is not a valid property on 'use' according to Playwright types; rely on process.env instead
   },
   projects: [
     {

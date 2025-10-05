@@ -1,0 +1,56 @@
+name: Docker build & smoke
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >
+          --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm ci
+      - name: Build app
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: |
+          npx prisma generate || true
+          npm run precompile-templates || true
+          npm run build
+      - name: Build Docker image
+        run: docker build -t stripe-micro-saas:prod .
+      - name: Run container
+        run: |
+          docker run --rm -d --name stripe-prod -p 3000:3000 \
+            -e DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres \
+            -e ADMIN_SECRET=secret123 -e CSRF_SECRET=csrf123 -e CRON_SECRET=cronsecret123 \
+            -e NODE_ENV=production stripe-micro-saas:prod
+      - name: Wait for readiness
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sS -f http://localhost:3000/api/ready >/dev/null 2>&1; then
+              echo "ready"; exit 0;
+            fi; echo "waiting..."; sleep 1;
+          done; docker logs stripe-prod || true; exit 1
+      - name: Run smoke endpoints
+        run: |
+          curl -sS http://localhost:3000/api/health
+          curl -sS http://localhost:3000/api/version
+      - name: Stop container
+        if: always()
+        run: docker stop stripe-prod || true

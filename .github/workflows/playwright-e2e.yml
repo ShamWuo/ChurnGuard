@@ -1,0 +1,53 @@
+name: Playwright E2E
+on: [push, pull_request]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >
+          --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install
+        run: npm ci
+      - name: Prisma generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: npx prisma generate
+      - name: Start dev server
+        run: |
+          export ADMIN_SECRET=secret123
+          export CSRF_SECRET=csrf123
+          export NEXT_TELEMETRY_DISABLED=1
+          npm run dev &
+          npx wait-on http://localhost:3000/api/ready --timeout 60000
+      - name: Compute billing-run flag
+        run: |
+          # If repository secrets STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET are set for this job,
+          # they will appear in the environment; tests will source PLAYWRIGHT_RUN_BILLING from the file below.
+          if [ -n "$STRIPE_SECRET_KEY" ] && [ -n "$STRIPE_WEBHOOK_SECRET" ]; then
+            echo "PLAYWRIGHT_RUN_BILLING=true" > playwright_env
+          else
+            echo "PLAYWRIGHT_RUN_BILLING=false" > playwright_env
+          fi
+      - name: Run Playwright
+        run: |
+          set -o allexport; source playwright_env || true; set +o allexport
+          npx playwright test --project=chromium --reporter=list
+        env:
+          E2E_BASE_URL: http://localhost:3000
+          ADMIN_SECRET: secret123
+          CRON_SECRET: cronsecret123
+          ENABLE_DESTRUCTIVE_DELETES: '1'
+          # PLAYWRIGHT_RUN_BILLING will be exported from the sourced file at runtime

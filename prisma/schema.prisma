@@ -1,5 +1,9 @@
 generator client {
   provider = "prisma-client-js"
+  // Use the library engine to avoid writing and renaming native query engine
+  // binaries on filesystems that can lock files (e.g., OneDrive on Windows).
+  // This reduces EPERM failures during `prisma generate`.
+  engineType = "library"
 }
 
 datasource db {
@@ -86,5 +90,17 @@ model AuditLog {
   actor     String?
   action    String
   details   String?
+  createdAt DateTime @default(now())
+}
+
+model CspReport {
+  id       Int      @id @default(autoincrement())
+  violated String?
+  doc      String?
+  blocked  String?
+  ua       String?
+  raw      String? 
+  headers  String?
+  deletedAt DateTime?
   createdAt DateTime @default(now())
 }

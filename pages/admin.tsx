@@ -10,6 +10,9 @@ export default function Admin() {
   const [settings, setSettings] = useState<any>({ dunningBaseHours: '', dunningMaxAttempts: '', safeMode: false });
   const [dryRun, setDryRun] = useState<boolean>(false);
   const [ready, setReady] = useState<any | null>(null);
+  const [recovered, setRecovered] = useState<any | null>(null);
+  const [retentionDays, setRetentionDays] = useState<number>(30);
+  const [purgeResult, setPurgeResult] = useState<any | null>(null);
 
   // map form state
   const [email, setEmail] = useState("");
@@ -21,6 +24,7 @@ export default function Admin() {
   fetch('/api/admin/dunning-list').then(r => r.json()).then(j => setCases(j.cases || []));
   fetch('/api/admin/csrf').then(r => r.json()).then(j => setCsrf(j.token)).catch(() => setCsrf(null));
   fetch('/api/admin/audit-list?page=1&pageSize=20').then(r => r.json()).then(j => setAudit({ ...j, action: '', actor: '' }));
+  fetch('/api/admin/recovered').then(r => r.json()).then(j => setRecovered(j)).catch(() => setRecovered(null));
   fetch('/api/admin/settings').then(r => r.json()).then(s => setSettings({ dunningBaseHours: s?.dunningBaseHours ?? '', dunningMaxAttempts: s?.dunningMaxAttempts ?? '', safeMode: !!s?.safeMode }));
   fetch('/api/ready').then(r => r.json()).then(setReady).catch(() => setReady({ ok: false }));
   }, []);
@@ -65,6 +69,55 @@ export default function Admin() {
     } catch (e: any) { alert(e.message || 'error'); }
   }
 
+  // New admin user operations: export CSV and delete (dry-run + confirm)
+  const [userOpMsg, setUserOpMsg] = useState<string | null>(null);
+  async function exportCsvForEmail(targetEmail: string) {
+    setUserOpMsg('Exporting...');
+    try {
+      const url = `/api/admin/export-user?email=${encodeURIComponent(targetEmail)}&format=csv`;
+      // let browser send cookies automatically
+      const r = await fetch(url, { method: 'GET', credentials: 'same-origin' });
+      if (!r.ok) throw new Error('export failed ' + r.status);
+      const text = await r.text();
+      // trigger a download in browser
+      if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+        const blob = new Blob([text], { type: 'text/csv' });
+        const href = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const safeEmail = targetEmail.replace(/[^a-z0-9@.-]/gi, '_');
+        a.href = href;
+        a.download = `user-${safeEmail}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(href);
+      }
+  setUserOpMsg('Export completed (download started)');
+    } catch (e: any) { setUserOpMsg(e.message || 'error'); }
+  }
+
+  async function deleteUserTarget(targetEmail: string, doDry: boolean) {
+    setUserOpMsg(doDry ? 'Dry-run...' : 'Deleting...');
+    try {
+      const r = await fetch('/api/admin/delete-user', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(csrf ? { 'x-csrf-token': csrf } : {}) }, body: JSON.stringify({ email: targetEmail, dry: doDry }) });
+      const j = await r.json();
+      // Format response for readability
+      if (j?.error) {
+        setUserOpMsg(`Error: ${j.error}${j.message ? ' — ' + j.message : ''}`);
+      } else if (j?.dry) {
+        setUserOpMsg(`Dry-run: ${j.counts?.cspReports ?? 0} CSP reports, ${j.counts?.subscriptions ?? 0} subscriptions would be affected`);
+      } else if (j?.ok) {
+        const parts = [] as string[];
+        if (j.counts) parts.push(`${j.counts.cspReports ?? 0} CSP reports`, `${j.counts.subscriptions ?? 0} subscriptions`);
+        if (j.partial) parts.push('(partial)');
+        if (j.actor) parts.push(`by ${j.actor}`);
+        setUserOpMsg(`Deleted: ${parts.join(' ' )}`);
+      } else {
+        setUserOpMsg(JSON.stringify(j));
+      }
+    } catch (e: any) { setUserOpMsg(e.message || 'error'); }
+  }
+
   const [rl, setRl] = useState<{ items?: any[] } | null>(null);
   async function refreshRateLimits() {
     try { const j = await (await fetch('/api/admin/rate-limit-status')).json(); setRl(j); } catch {}
@@ -80,6 +133,10 @@ export default function Admin() {
           <button className="btn small" type="submit">Logout</button>
         </form>
       </div>
+      <nav className="mt-8">
+        <a className="btn small" href="/admin-csp">CSP reports</a>
+        <a className="btn small ml-8" href="/admin-previews">Email previews</a>
+      </nav>
       {ready && (
         <section className="panel mb-16">
           <h2>Status</h2>
@@ -93,6 +150,39 @@ export default function Admin() {
           </div>
           <div className="mt-8">
             <a className="mono" href="/api/admin/rate-limit-status" target="_blank" rel="noreferrer">View raw rate limits</a>
+          </div>
+          <div className="mt-8">
+            <h3>Recovered revenue</h3>
+            {recovered ? (
+              <div>
+                <div className="panel mb-4">
+                  <strong>Total recovered:</strong> {(recovered.recoveredRevenue/100).toFixed(2)}
+                  {' '}({recovered.count} attributions)
+                </div>
+                {/* small sparkline + list */}
+                {recovered.perBucket && Object.keys(recovered.perBucket).length > 0 && (
+                  <div className="mt-4">
+                    <div style={{ width: 320 }}>
+                      <Sparkline series={recovered.perBucket} />
+                    </div>
+                    <ul className="mono mt-2">
+                      {Object.entries(recovered.perBucket).map(([k, v]) => (
+                        <li key={k}>{k}: {(Number(v)/100).toFixed(2)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div className="mt-4">
+                  <a className="mono" href={`/api/admin/recovered?format=csv`} target="_blank" rel="noreferrer">Download CSV</a>
+                </div>
+              </div>
+            ) : <em>Loading metrics...</em>}
+          </div>
+          <div className="mt-8">
+            <h3>Purge soft-deleted CSP reports</h3>
+            <label>TTL days: <input className="input" type="number" value={retentionDays} onChange={(e) => setRetentionDays(Number(e.target.value || 30))} /></label>
+            <button className="btn ml-4" onClick={async () => { setPurgeResult(null); const r = await fetch('/api/admin/csp-retention', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(csrf ? { 'x-csrf-token': csrf } : {}) }, body: JSON.stringify({ ttlDays: retentionDays }) }); const j = await r.json(); setPurgeResult(j); }}>Purge</button>
+            {purgeResult && <div className="mt-4">Result: {JSON.stringify(purgeResult)}</div>}
           </div>
           <div className="mt-8">
             <strong>Rate limits</strong>
@@ -164,6 +254,25 @@ export default function Admin() {
           <pre className="code-block">{JSON.stringify(result, null, 2)}</pre>
         )}
 
+      <div className="mt-8 panel">
+        <h3>User operations</h3>
+        <div className="flex items-center">
+          <input className="input" placeholder="user@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <button className="btn ml-4" onClick={() => exportCsvForEmail(email)}>Export CSV</button>
+          <button className="btn ml-4" onClick={() => deleteUserTarget(email, true)}>Delete (dry-run)</button>
+          <button className="btn ml-4" onClick={async () => {
+            if (!email) { setUserOpMsg('Enter email first'); return; }
+            const typed = window.prompt(`Type the email ${email} to confirm deletion:`);
+            if (typed === email) {
+              deleteUserTarget(email, false);
+            } else {
+              setUserOpMsg('Deletion cancelled — typed email did not match');
+            }
+          }}>Delete (confirm)</button>
+        </div>
+        {userOpMsg && <pre className="code-block mt-4">{userOpMsg}</pre>}
+      </div>
+
     <table className="table">
           <thead>
       <tr><th>Invoice</th><th>Status</th><th>Amount</th><th>Customer</th></tr>
@@ -213,5 +322,25 @@ function Badge({ label, ok }: { label: string; ok: boolean }) {
     <span title={ok ? 'OK' : 'Not Ready'} className={`badge ${ok ? 'ok' : 'bad'}`}>
       <span className={`dot ${ok ? 'ok' : 'bad'}`} /> {label}
     </span>
+  );
+}
+
+function Sparkline({ series }: { series: Record<string, number> }) {
+  const keys = Object.keys(series).slice(-30); // last 30
+  const vals = keys.map(k => series[k] || 0);
+  const max = Math.max(...vals, 1);
+  const min = Math.min(...vals, 0);
+  const width = 320;
+  const height = 40;
+  const step = width / Math.max(1, vals.length - 1);
+  const points = vals.map((v, i) => {
+    const x = i * step;
+    const y = height - ((v - min) / (max - min || 1)) * height;
+    return `${x},${y}`;
+  }).join(' ');
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+      <polyline fill="none" stroke="#2563eb" strokeWidth={2} points={points} />
+    </svg>
   );
 }

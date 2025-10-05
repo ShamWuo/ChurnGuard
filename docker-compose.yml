@@ -1,12 +1,12 @@
 version: '3.8'
 services:
   db:
-    image: postgres:15
+    image: postgres:15-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: app
-      POSTGRES_PASSWORD: app
-      POSTGRES_DB: app
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: micro_saas
     ports:
       - "5432:5432"
     volumes:
@@ -17,5 +17,19 @@ services:
     ports:
       - "6379:6379"
     command: ["redis-server", "--appendonly", "yes"]
+  web:
+    build: .
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/micro_saas
+      ADMIN_SECRET: secret123
+      CSRF_SECRET: csrf123
+      NEXT_TELEMETRY_DISABLED: '1'
+      PORT: '3100'
+      NODE_ENV: production
+    ports:
+      - "3100:3100"
+    depends_on:
+      - db
+    restart: on-failure
 volumes:
   pgdata:

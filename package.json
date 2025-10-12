@@ -3,6 +3,12 @@
 	"version": "1.0.1",
 	"private": false,
 	"description": "ChurnGuard – Stripe churn deflection: automated dunning, recovery analytics, admin console.",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/ShamWuo/ChurnGuard.git"
+	},
+	"homepage": "https://github.com/ShamWuo/ChurnGuard#readme",
 	"scripts": {
 		"dev": "next dev",
 		"dev:3100": "next dev -p 3100",

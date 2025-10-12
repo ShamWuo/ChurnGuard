@@ -4,6 +4,11 @@ Recover lost revenue from failed payments and reduce involuntary churn for Strip
 
 > Formerly "Stripe Churn Deflection" – renamed for public release.
 
+Open source
+-----------
+
+This repository is open source under the MIT license. Contributions, issues, and pull requests are welcome. See `CONTRIBUTING.md` for contribution guidelines and `CODE_OF_CONDUCT.md` for expected community behaviour. The project maintains a lightweight public core with commercial extensions split into private packages when applicable.
+
 See `docs/E2E_AND_SELLING.md` for local e2e instructions and selling/pricing notes.
 
 ## What’s inside

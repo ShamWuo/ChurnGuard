@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import prisma from '../../../lib/prisma';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Validate secret
+  
   const secret = process.env.CRON_SECRET || '';
   const provided = String(req.query.secret || req.headers['x-cron-secret'] || '');
   if (!secret || !provided || provided !== secret) return res.status(401).json({ ok: false, error: 'unauthorized' });

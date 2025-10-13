@@ -20,12 +20,11 @@ function loadTemplate(name: string) {
 function renderTpl(name: string, vars: Record<string, any>) {
   const tpl = loadTemplate(name);
   if (!tpl) return "";
-  // If template contains Handlebars tokens, use Handlebars. Else support simple ${var} placeholders.
   if (tpl.includes("{{") || tpl.includes("}}") ) {
     const compiled = Handlebars.compile(tpl);
     return compiled(vars);
   }
-  // Simple ${...} interpolation supporting patterns like ${var} and ${var || 'default'}
+    
   return tpl.replace(/\$\{([^}]+)\}/g, (_: string, expr: string) => {
     const parts = expr.split('||').map((p: string) => p.trim());
     if (parts.length === 1) {
@@ -33,7 +32,7 @@ function renderTpl(name: string, vars: Record<string, any>) {
       return vars[k] !== undefined && vars[k] !== null ? String(vars[k]) : "";
     }
     const varName = parts[0];
-    // join the rest as default and strip surrounding quotes if present
+    
     const defaultPart = parts.slice(1).join('||').trim().replace(/^['"]|['"]$/g, '');
     const val = vars[varName];
     if (val !== undefined && val !== null && val !== '') return String(val);

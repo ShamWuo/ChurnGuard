@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { checkAdminAuth } from '../../../lib/adminAuth';
 import prisma from '../../../lib/prisma';
 
-// Simple in-memory ring buffer for CSP reports (non-persistent)
+
 type CspItem = { t: number; violated?: string; doc?: string; blocked?: string; ua?: string };
 const MAX = 200;
 const buf: CspItem[] = [];
@@ -11,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Cache-Control', 'no-store');
   if (!checkAdminAuth(req)) return res.status(401).json({ error: 'unauthorized' });
 
-  // GET: list with paging/search and optional CSV
+  
   if (req.method === 'GET') {
   const since = Number(req.query.since || 0);
     const format = String(req.query.format || '').toLowerCase();
@@ -20,10 +20,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const pageSize = Math.min(200, Math.max(10, Number(req.query.pageSize || 50)));
   const includeDeleted = String(req.query.includeDeleted || '') === '1';
 
-    // In-memory
+    
     const memAll = buf.filter(x => x.t > since);
 
-    // DB (most recent first)
+    
     let dbItems: any[] = [];
     try {
       const whereClause: any = {};
@@ -38,7 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const dbMapped = dbItems.map((r: any) => ({ id: r.id, t: r.createdAt ? new Date(r.createdAt).getTime() : Date.now(), violated: r.violated, doc: r.doc, blocked: r.blocked, ua: r.ua, raw: r.raw ? JSON.parse(r.raw) : undefined, headers: r.headers ? JSON.parse(r.headers) : undefined, deletedAt: r.deletedAt ? new Date(r.deletedAt).getTime() : undefined }));
 
-    // merge and filter
+    
     let mergedAll = [...dbMapped, ...memAll].sort((a, b) => b.t - a.t).slice(0, MAX);
     if (q) {
       mergedAll = mergedAll.filter(it => ((it.violated || '') + ' ' + (it.doc || '') + ' ' + (it.blocked || '') + ' ' + (it.ua || '')).toLowerCase().includes(q));

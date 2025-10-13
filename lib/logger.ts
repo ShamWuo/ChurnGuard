@@ -62,7 +62,6 @@ export function withLogging<T = any>(handler: NextApiHandler<T>): NextApiHandler
         } as any;
         if (shouldLog('debug')) entry.headers = redactHeaders(req.headers);
         if (errored) entry.error = { message: String(errored?.message || errored), name: errored?.name };
-        // eslint-disable-next-line no-console
         console.log(JSON.stringify({ type: 'api', ...entry }));
       } catch {}
     }

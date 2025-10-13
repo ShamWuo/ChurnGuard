@@ -4,7 +4,7 @@ let inited = false;
 export function initSentry() {
   if (inited) return;
   const dsn = process.env.SENTRY_DSN;
-  if (!dsn) return; // no-op if not configured
+  if (!dsn) return; 
   const tracesSampleRate = Number(process.env.SENTRY_TRACES_SAMPLE_RATE || '0.1');
   Sentry.init({ dsn, tracesSampleRate, environment: process.env.NODE_ENV });
   inited = true;
@@ -25,7 +25,7 @@ export function withSentryTracing<T extends (...args: any[]) => any>(fn: T): T {
       const scope = (Sentry as any).getCurrentHub?.().getScope?.();
       if (scope && transaction) scope.setSpan?.(transaction);
       try {
-        // tag request context if NextApiRequest-like arg present
+        
         try {
           const req = args?.[0];
           const rid = req?.headers?.['x-request-id'] || undefined;
@@ -42,7 +42,7 @@ export function withSentryTracing<T extends (...args: any[]) => any>(fn: T): T {
         throw e;
       }
     } catch {
-      // Sentry not configured, just run
+      
       return await fn.apply(this, args as any);
     }
   }) as any as T;

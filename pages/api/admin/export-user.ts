@@ -20,7 +20,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   const user = await prisma.user.findUnique({ where: { email }, include: { subscriptions: true } });
   if (!user) return res.status(404).json({ error: 'not_found' });
 
-  // CSV export if requested
+  
   if (req.query.format === 'csv') {
     const rows = [ ['id','email','stripeCustomerId','createdAt'], [user.id, user.email, user.stripeCustomerId||'', user.createdAt.toISOString()] ];
     const csv = rows.map(r => r.map(v => typeof v === 'string' && v.includes(',') ? '"'+v.replace(/"/g,'""')+'"' : String(v)).join(',')).join('\n');

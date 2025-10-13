@@ -7,9 +7,9 @@ import { rateLimitAsync } from '../../../lib/rateLimit';
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).end('Method Not Allowed');
 
-  // Basic rate limiting to mitigate brute-force attempts (IP-based)
+  
   const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'anon');
-  const rl = await rateLimitAsync(`admin:login:${ip}`, 10, 10 * 60_000); // 10 attempts per 10 minutes
+  const rl = await rateLimitAsync(`admin:login:${ip}`, 10, 10 * 60_000); 
   res.setHeader('RateLimit-Limit', String(rl.limit));
   res.setHeader('RateLimit-Remaining', String(rl.remaining));
   res.setHeader('RateLimit-Reset', String(Math.floor(rl.resetAt / 1000)));
@@ -25,12 +25,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (adminUser && adminPass) {
     if (username === adminUser && password === adminPass) ok = true;
   } else {
-    // legacy: accept password matching ADMIN_SECRET
+    
     if (password === secret) ok = true;
   }
 
   if (!ok) {
-    // Small, jittered delay to make brute force/username probing slightly more costly
+    
     const delayMs = 150 + Math.floor(Math.random() * 200);
     await new Promise(r => setTimeout(r, delayMs));
     return res.status(401).json({ error: 'invalid' });
@@ -40,7 +40,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   const secureFlag = process.env.NODE_ENV === 'production' ? '; Secure' : '';
   const sameSite = process.env.NODE_ENV === 'production' ? 'Strict' : 'Lax';
   const domain = process.env.COOKIE_DOMAIN ? `; Domain=${process.env.COOKIE_DOMAIN}` : '';
-  // HttpOnly, Path=/, Max-Age 2 hours, SameSite, optional Domain, Secure in prod
+  
   res.setHeader('Set-Cookie', `admin_token=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=7200; SameSite=${sameSite}${domain}${secureFlag}`);
   res.setHeader('Cache-Control', 'no-store');
   res.json({ ok: true });

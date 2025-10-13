@@ -8,7 +8,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { email } = req.body || {}
   if (!email) return res.status(400).json({ error: 'email required' })
   try {
-    // Minimal audit log entry
+    
     await prisma.auditLog.create({ data: { action: 'invite', detail: email } })
     return res.status(200).json({ ok: true })
   } catch (err: any) {

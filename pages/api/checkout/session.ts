@@ -10,7 +10,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!priceId) return res.status(400).json({ error: 'priceId required' });
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    
     const Stripe = require('stripe');
     const stripe = new Stripe(secret, { apiVersion: '2023-08-16' });
 

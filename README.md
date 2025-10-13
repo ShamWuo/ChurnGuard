@@ -2,8 +2,6 @@
 
 Recover lost revenue from failed payments and reduce involuntary churn for Stripe-powered SaaS. ChurnGuard ships automated dunning (retries + reminders), recovery attribution, a secure admin console, and production-ready Stripe webhook handling.
 
-> Formerly "Stripe Churn Deflection" – renamed for public release.
-
 Open source
 -----------
 

@@ -1,17 +1,20 @@
 import { useEffect, useState } from "react";
 import Head from 'next/head';
+import { OnboardingChecklist } from '../components/OnboardingChecklist';
 
 export default function Home() {
 	const [customerId, setCustomerId] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [buyLoading, setBuyLoading] = useState(false);
 	const [priceDisplay, setPriceDisplay] = useState<string | null>(null);
+	const [seedMsg, setSeedMsg] = useState<string | null>(null);
+	const [cfg, setCfg] = useState<{ priceDisplay?: string | null; stripeConfigured?: boolean } | null>(null);
 
 	useEffect(() => {
-		// fetch public config (price display) so UI reflects environment
+		
 		fetch("/api/config")
 			.then((r) => r.json())
-			.then((j) => setPriceDisplay(j.priceDisplay || null))
+			.then((j) => { setPriceDisplay(j.priceDisplay || null); setCfg(j); })
 			.catch(() => {});
 	}, []);
 
@@ -46,6 +49,15 @@ export default function Home() {
 		}
 	}
 
+	async function seedDemoData() {
+		setSeedMsg('Seeding...');
+		try {
+			const r = await fetch('/api/dev/seed-demo', { method: 'POST' });
+			if (!r.ok) throw new Error('seed failed ' + r.status);
+			setSeedMsg('Seeded demo data. Open Admin to view dunning cases.');
+		} catch (e: any) { setSeedMsg(e.message || 'error'); }
+	}
+
 	return (
 			<>
 				<Head>
@@ -55,15 +67,30 @@ export default function Home() {
 				<main className="container container--narrow">
 			<h1>Stripe Churn Deflection</h1>
 			<p>
-				Reduce involuntary churn by offering an easy billing portal and automated dunning
-				notifications.
+				Recover lost revenue from failed payments. This kit wires Stripe Checkout & Billing Portal,
+				automates dunning, and gives you an admin console with audit, metrics, and safe-mode.
+			</p>
+			<p className="mt-8">
+				<a className="btn small mr-8" href="/pricing">See Pricing</a>
+				<a className="btn small" href="/admin-login">Admin Login</a>
 			</p>
 
 			<div className="mb-20">
-				<button className="btn" onClick={buyNow}>
+				<button className="btn" onClick={buyNow} disabled={!!(cfg && cfg.stripeConfigured === false)}>
 					{buyLoading ? "Redirecting..." : priceDisplay ? `Buy Subscription (${priceDisplay})` : "Buy Subscription"}
 				</button>
 			</div>
+
+			{process.env.NODE_ENV !== 'production' && (
+				<div className="panel mb-20">
+					<h3>Demo data</h3>
+					<p>Seed a couple of users, a dunning case, and a recovered payment attribution.</p>
+					<button className="btn small" onClick={seedDemoData}>Seed demo</button>
+					{seedMsg && <div className="mt-2 mono">{seedMsg}</div>}
+				</div>
+			)}
+
+			<OnboardingChecklist compact />
 
 			<form onSubmit={openPortal} className="grid">
 				<input

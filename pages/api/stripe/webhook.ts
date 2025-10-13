@@ -47,7 +47,7 @@ export async function handleStripeEvent(event: Stripe.Event) {
 			if (stripeCustomerId) {
 				await pdb.recoveryAttribution.create({ data: { stripeCustomerId, stripeInvoiceId: invoice.id, amountRecovered: invoice.amount_paid || 0, currency: (invoice.currency || 'usd').toUpperCase(), source: RecoverySource.retry } });
 				await pdb.dunningCase.updateMany({ where: { stripeInvoiceId: invoice.id }, data: { status: DunningStatus.recovered } });
-				// Write an audit entry so recovered revenue and founder-slot counting can rely on a canonical log
+				
 				try {
 					await pdb.auditLog.create({ data: { actor: 'system', action: 'billing:purchase', details: JSON.stringify({ invoiceId: invoice.id, customerId: stripeCustomerId, amount: invoice.amount_paid || 0, currency: (invoice.currency || 'usd').toUpperCase() }) } });
 				} catch (e) { console.warn('failed to write billing:purchase audit', e); }

@@ -13,7 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const ttlDays = Number(body?.ttlDays ?? req.query.ttlDays ?? 30);
     const cutoff = new Date(Date.now() - Math.max(1, ttlDays) * 24 * 60 * 60 * 1000);
 
-    // hard-delete rows soft-deleted before cutoff
+    
     const result = await (prisma as any)?.cspReport?.deleteMany?.({ where: { deletedAt: { lt: cutoff } } }) as any;
     const count = result?.count ?? 0;
 

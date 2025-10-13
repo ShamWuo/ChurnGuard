@@ -33,15 +33,15 @@ function keyForBucket(d: Date, bucket: Bucket, tzOffsetMin: number): string {
   const day = local.getUTCDate();
   if (bucket === 'day') return `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   if (bucket === 'week') {
-    // ISO week number (approx): week starts Monday
+    
     const date = new Date(Date.UTC(y, m - 1, day));
-    const dayNum = (date.getUTCDay() + 6) % 7; // 0..6 Mon..Sun
+    const dayNum = (date.getUTCDay() + 6) % 7; 
     date.setUTCDate(date.getUTCDate() - dayNum + 3);
     const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
     const week = 1 + Math.round(((date.getTime() - firstThursday.getTime()) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
     return `${date.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
   }
-  // month
+  
   return `${y}-${String(m).padStart(2, '0')}`;
 }
 
@@ -51,7 +51,7 @@ function fillSeries(start: Date, end: Date, bucket: Bucket, tzOffsetMin: number)
   const endDay = startOfDay(end, tzOffsetMin);
   while (cur <= endDay) {
     keys.push(keyForBucket(cur, bucket, tzOffsetMin));
-    // advance
+    
     if (bucket === 'day') cur = new Date(cur.getTime() + 86400000);
     else if (bucket === 'week') cur = new Date(cur.getTime() + 7 * 86400000);
     else {
@@ -76,18 +76,18 @@ function etagMatches(ifNoneMatch: string | string[] | undefined, tag: string): b
 }
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Basic rate limit (skip under test)
+  
   if (process.env.NODE_ENV !== 'test') {
     const ip = getClientIp(req);
     const rl = await rateLimitAsync(`metrics:${ip}`, 60, 60_000);
-    // Always expose remaining budget so clients can backoff
+    
     res.setHeader('RateLimit-Limit', String(rl.limit));
     res.setHeader('RateLimit-Remaining', String(rl.remaining));
     res.setHeader('RateLimit-Reset', String(Math.floor(rl.resetAt / 1000)));
     if (!rl.ok) { res.status(429).json({ error: 'rate_limited' }); return; }
   }
 
-  // Caching (skip under test). Prefer Redis when available.
+  
   const cacheTtlMs = Number(process.env.METRICS_CACHE_TTL_MS || 10_000);
   const cacheKey = `metrics:${JSON.stringify(req.query)}`;
   const now = Date.now();
@@ -116,13 +116,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         }
       }
     } catch {
-      // ignore cache read errors
+      
     }
   }
 
   try {
-    // Params
-  // Stabilize defaults: round 'end' to the nearest minute so GET/HEAD within a short window share the same ETag
+    
+  
   const providedStart = parseDate(req.query.start);
   const providedEnd = parseDate(req.query.end);
   const defaultEnd = new Date(Math.floor(Date.now() / 60000) * 60000);
@@ -136,7 +136,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
     const tzOffsetMin = Number(process.env.METRICS_TZ_OFFSET_MINUTES || 0);
 
-    // Query all attributions within range (note: Dummy shim ignores where)
+    
     const total = await prisma.recoveryAttribution.findMany({
       orderBy: { createdAt: 'asc' },
       where: { createdAt: { gte: start, lte: end } } as any,
@@ -145,7 +145,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const recovered = total.reduce((s: number, r: any) => s + (r.amountRecovered || 0), 0);
     const count = total.length;
 
-    // bucketed sums
+    
     const buckets: Record<string, number> = {};
     for (const r of total) {
       const d = new Date(r.createdAt);
@@ -153,14 +153,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       buckets[key] = (buckets[key] || 0) + (r.amountRecovered || 0);
     }
 
-    // ensure empty periods are included
+    
     const seriesKeys = fillSeries(start, end, bucket, tzOffsetMin);
     const perBucket: Record<string, number> = {};
     for (const k of seriesKeys) perBucket[k] = buckets[k] || 0;
 
     const payload = { recoveredRevenue: recovered, count, bucket, start: start.toISOString(), end: end.toISOString(), perBucket };
 
-    // HEAD support returns headers only but computes payload for accurate ETag/Cache headers
+    
     const isHead = req.method === 'HEAD';
 
     if ((Array.isArray(req.query.format) ? req.query.format[0] : req.query.format) === 'csv') {
@@ -202,6 +202,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (isHead) { res.status(200).end(); return; }
     res.json(payload);
   } catch (e: any) {
+    console.error('analytics.metrics error', e && e.message, e && e.stack);
     res.status(500).json({ error: e.message });
   }
 }

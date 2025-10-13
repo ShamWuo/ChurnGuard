@@ -52,7 +52,7 @@ function parseDate(input?: string | string[]): Date | undefined {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Admin-only
+  
   if (!checkAdminAuth(req)) { res.status(401).json({ error: 'unauthorized' }); return; }
 
   try {

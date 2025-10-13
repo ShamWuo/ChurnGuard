@@ -7,7 +7,7 @@ type Body = {
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Simple protection: require ADMIN_SECRET header when modifying settings
+  
   const adminHeader = req.headers['x-admin-secret'] || req.headers['admin-secret'];
   const ADMIN_SECRET = process.env.ADMIN_SECRET;
   if (!ADMIN_SECRET || String(adminHeader) !== String(ADMIN_SECRET)) {
@@ -27,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const secret = body && body.stripeSecret;
     if (typeof secret !== 'string') return res.status(400).json({ error: 'stripeSecret required' });
 
-    // Write to .env.local in project root (append or replace STRIPE_SECRET)
+    
     const envPath = path.resolve(process.cwd(), '.env.local');
     let content = '';
     try {

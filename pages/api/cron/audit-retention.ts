@@ -3,7 +3,7 @@ import prisma from '../../../lib/prisma';
 import { withLogging } from '../../../lib/logger';
 import { withSentryTracing } from '../../../lib/sentry';
 
-// Simple retention: delete logs older than N days (default 90). Protect with a secret header.
+
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).end('Method Not Allowed');
   const secret = process.env.CRON_SECRET;

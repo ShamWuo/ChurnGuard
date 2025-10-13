@@ -9,7 +9,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!email) return res.status(400).json({ error: 'email required' })
 
   try {
-    // Create a Stripe Customer and return client info for onboarding
+    
     const customer = await stripe.customers.create({ email })
     return res.status(200).json({ customerId: customer.id })
   } catch (err: any) {

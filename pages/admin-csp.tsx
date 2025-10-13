@@ -49,11 +49,11 @@ export default function AdminCsp() {
   function openDetail(it: Item) { setDetail(it); }
   function closeDetail() { setDetail(null); }
 
-  // debounced search
+  
   useEffect(() => {
     const t = setTimeout(() => { setPage(1); load(); }, 350);
     return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  
   }, [q]);
 
   function confirmDelete(id?: number, ts?: number, text?: string) {
@@ -68,7 +68,7 @@ export default function AdminCsp() {
       if (ts) params.set('ts', String(ts));
       await fetch('/api/admin/csp-reports?' + params.toString(), { method: 'DELETE' });
       setPendingDelete(null);
-      // reload first page after delete to keep UX predictable
+      
       setPage(1);
       await load();
     } catch (e) { setErr(String(e || 'delete failed')); }
@@ -127,10 +127,10 @@ export default function AdminCsp() {
                         <td>
                           <button className="btn small" onClick={() => openDetail(it)} disabled={loading || deleting}>View JSON</button>
                           <button className="btn small ml-4" onClick={() => copyJson(it)} disabled={loading || deleting}>Copy</button>
-                          {/* if id exists, show delete/restore by id, otherwise delete by ts */}
+                          {}
                           {(it as any).deletedAt ? (
                             <>
-                              <button className="btn small ml-4" onClick={() => { /* restore */ fetch('/api/admin/csp-reports?id=' + (it as any).id, { method: 'POST', body: JSON.stringify({ action: 'restore', id: (it as any).id }) }).then(() => load()); }} disabled={loading || deleting}>Restore</button>
+                              <button className="btn small ml-4" onClick={() => {  fetch('/api/admin/csp-reports?id=' + (it as any).id, { method: 'POST', body: JSON.stringify({ action: 'restore', id: (it as any).id }) }).then(() => load()); }} disabled={loading || deleting}>Restore</button>
                               <button className="btn small ml-4 danger" onClick={() => confirmDelete((it as any).id, undefined, 'Hard delete record?')} disabled={loading || deleting}>Hard Delete</button>
                             </>
                           ) : (

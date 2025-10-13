@@ -18,7 +18,7 @@ export default function AdminSettings() {
   const save = async () => {
     setMessage(null);
     const res = await fetch('/api/admin/settings', {
-  // dev-only endpoint
+  
   method: 'POST',
   headers: { 'Content-Type': 'application/json', 'x-admin-secret': (window as any).__ADMIN_SECRET || '' },
   body: JSON.stringify({ stripeSecret }),

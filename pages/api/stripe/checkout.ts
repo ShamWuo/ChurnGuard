@@ -18,10 +18,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/?checkout=cancel`,
     })
     try {
-      // record checkout initiation for auditing and metrics
+      
       await logAudit('system', 'billing:checkout_started', { sessionId: session.id, price: effectivePrice });
     } catch (e) {
-      // swallow - non-critical
+      
       console.warn('failed to log checkout start', e);
     }
     return res.status(200).json({ url: session.url })

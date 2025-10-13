@@ -20,7 +20,7 @@ export default function Admin() {
   const [markingFounder, setMarkingFounder] = useState(false);
   const [founderMarkResult, setFounderMarkResult] = useState<string | null>(null);
 
-  // map form state
+  
   const [email, setEmail] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [msg, setMsg] = useState("");
@@ -51,7 +51,7 @@ export default function Admin() {
   const r = await fetch('/api/admin/run-dunning?dryRun=' + String(dryRun), { method: 'POST', headers: { ...(csrf ? { 'x-csrf-token': csrf } : {}) } });
       const j = await r.json();
       setResult(j);
-      // refresh list
+      
   const l = await fetch('/api/admin/dunning-list').then(r => r.json());
       setCases(l.cases || []);
     } finally { setRunning(false); }
@@ -85,17 +85,17 @@ export default function Admin() {
   } catch (e: any) { toast?.(e.message || 'error'); }
   }
 
-  // New admin user operations: export CSV and delete (dry-run + confirm)
+  
   const [userOpMsg, setUserOpMsg] = useState<string | null>(null);
   async function exportCsvForEmail(targetEmail: string) {
     setUserOpMsg('Exporting...');
     try {
       const url = `/api/admin/export-user?email=${encodeURIComponent(targetEmail)}&format=csv`;
-      // let browser send cookies automatically
+      
       const r = await fetch(url, { method: 'GET', credentials: 'same-origin' });
       if (!r.ok) throw new Error('export failed ' + r.status);
       const text = await r.text();
-      // trigger a download in browser
+      
       if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         const blob = new Blob([text], { type: 'text/csv' });
         const href = URL.createObjectURL(blob);
@@ -117,7 +117,7 @@ export default function Admin() {
     try {
       const r = await fetch('/api/admin/delete-user', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(csrf ? { 'x-csrf-token': csrf } : {}) }, body: JSON.stringify({ email: targetEmail, dry: doDry }) });
       const j = await r.json();
-      // Format response for readability
+      
       if (j?.error) {
         setUserOpMsg(`Error: ${j.error}${j.message ? ' — ' + j.message : ''}`);
       } else if (j?.dry) {
@@ -181,7 +181,7 @@ export default function Admin() {
                   <strong>Total recovered:</strong> {(recovered.recoveredRevenue/100).toFixed(2)}
                   {' '}({recovered.count} attributions)
                 </div>
-                {/* small sparkline + list */}
+                {}
                 {recovered.perBucket && Object.keys(recovered.perBucket).length > 0 && (
                   <div className="mt-4">
                     <div style={{ width: 320 }}>
@@ -389,7 +389,7 @@ function Badge({ label, ok }: { label: string; ok: boolean }) {
 }
 
 function Sparkline({ series }: { series: Record<string, number> }) {
-  const keys = Object.keys(series).slice(-30); // last 30
+  const keys = Object.keys(series).slice(-30); 
   const vals = keys.map(k => series[k] || 0);
   const max = Math.max(...vals, 1);
   const min = Math.min(...vals, 0);

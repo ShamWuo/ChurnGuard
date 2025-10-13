@@ -6,7 +6,7 @@ import { rateLimitAsync } from '../../../lib/rateLimit';
 import { withLogging } from '../../../lib/logger';
 import { withSentryTracing } from '../../../lib/sentry';
 
-// Single DB-backed handler for /api/admin/settings
+
 export default withSentryTracing(withLogging(async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!checkAdminAuth(req)) return res.status(401).json({ error: 'unauthorized' });
 
@@ -44,7 +44,7 @@ export default withSentryTracing(withLogging(async function handler(req: NextApi
     });
     try {
       await pdb.auditLog.create({ data: { actor: 'admin', action: 'settings:update', details: JSON.stringify({ dunningBaseHours, dunningMaxAttempts, safeMode }) } });
-    } catch (e) { /* ignore audit failures */ }
+    } catch (e) {  }
     res.json(s);
     return;
   }

@@ -23,10 +23,7 @@ function getTransport() {
   });
 }
 
-/**
- * Send email. If SMTP is not configured, logs the message and returns a mocked result.
- * Always returns a consistent shape: { mocked?: boolean, messageId?: string }
- */
+
 export async function sendMail(params: MailParams) {
   const from = params.from || process.env.EMAIL_FROM || "no-reply@example.com";
   const transport = getTransport();
@@ -34,7 +31,7 @@ export async function sendMail(params: MailParams) {
   const text = htmlToText(params.html, { wordwrap: 130 });
 
   if (!transport) {
-    // Try Postmark if configured (server token)
+    
     const postmarkToken = process.env.POSTMARK_SERVER_TOKEN;
     if (postmarkToken) {
       try {
@@ -49,11 +46,11 @@ export async function sendMail(params: MailParams) {
         return { messageId: res.MessageID } as any;
       } catch (err: any) {
         console.error("postmark send error", err);
-        // fallthrough to console fallback
+        
       }
     }
 
-    // Safe fallback for local/dev: print a compact representation so logs contain the important bits.
+  
     console.warn("SMTP/Postmark not configured or failed; printing email to console.");
     console.info({ from, to: params.to, subject: params.subject, text });
     return { mocked: true } as any;
@@ -70,7 +67,7 @@ export async function sendMail(params: MailParams) {
     return { messageId: info.messageId };
   } catch (err: any) {
     console.error("sendMail error", err);
-    // bubble up a useful error for callers while keeping a stable return shape
+    
     throw new Error(`Failed to send email: ${err?.message || err}`);
   }
 }

@@ -6,14 +6,14 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('Seeding demo data...')
 
-  // Settings (singleton)
+  
   await prisma.settings.upsert({
     where: { id: 1 },
     update: { safeMode: true },
     create: { id: 1, dunningBaseHours: 24, dunningMaxAttempts: 4, safeMode: true },
   })
 
-  // Users and subscriptions
+  
   const alice = await prisma.user.upsert({
     where: { email: 'alice@example.com' },
     update: {},
@@ -38,7 +38,7 @@ async function main() {
     },
   })
 
-  // Dunning case for Bob (failed invoice) - idempotent upsert
+  
   const dunning = await prisma.dunningCase.upsert({
     where: { stripeInvoiceId: 'in_demo_bob_1' },
     update: {},
@@ -59,7 +59,7 @@ async function main() {
     },
   })
 
-  // Recovery attribution (dry-run example)
+  
   const existingRecovery = await prisma.recoveryAttribution.findFirst({ where: { stripeInvoiceId: 'in_demo_alice_1' } });
   if (!existingRecovery) {
     await prisma.recoveryAttribution.create({
@@ -73,14 +73,14 @@ async function main() {
     });
   }
 
-  // Audit logs
+  
   await prisma.auditLog.createMany({
     data: [
       { actor: 'system', action: 'seed:created', details: 'Created demo users and dunning case' },
     ],
   })
 
-  // CSP reports sample
+  
   const existingCsp = await prisma.cspReport.findFirst({ where: { doc: 'example.html' } });
   if (!existingCsp) {
     await prisma.cspReport.create({ data: { violated: "img-src 'self'", doc: 'example.html', raw: '{}' } });

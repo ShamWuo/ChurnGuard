@@ -5,7 +5,8 @@ jest.mock('../lib/prisma', () => ({
   default: {
     stripeEventLog: { create: jest.fn() },
     recoveryAttribution: { create: jest.fn() },
-    dunningCase: { updateMany: jest.fn() },
+  dunningCase: { updateMany: jest.fn() },
+  auditLog: { create: jest.fn() },
   }
 }));
 
@@ -22,4 +23,5 @@ test('invoice.payment_succeeded records recovery attribution and updates dunning
   const pdb = require('../lib/prisma').default;
   expect(pdb.recoveryAttribution.create).toHaveBeenCalled();
   expect(pdb.dunningCase.updateMany).toHaveBeenCalled();
+  expect(pdb.auditLog.create).toHaveBeenCalled();
 });

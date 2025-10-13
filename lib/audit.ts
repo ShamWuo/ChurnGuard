@@ -6,7 +6,7 @@ export async function logAudit(actor: string | undefined, action: string, detail
   try {
     await prisma.auditLog.create({ data: { actor: actor || null, action, details: details ? JSON.stringify(details) : null } });
   } catch (e) {
-    // swallow errors to avoid breaking admin flows
+    
     console.error('audit log failed', e);
   }
 }

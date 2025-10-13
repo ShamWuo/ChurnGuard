@@ -19,12 +19,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   }
 
   try {
-    // Use require to avoid crash when stripe isn't installed at runtime in some environments
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    
+    
     const Stripe = require('stripe');
     const stripe = new Stripe(secret, { apiVersion: '2023-08-16' });
 
-    // Fetch lightweight counts to show a summary on the admin page. Keep calls small.
+    
     const [plans, subscriptions, customers] = await Promise.all([
       stripe.plans.list({ limit: 1 }).then((r: any) => r.total_count || (r.data && r.data.length) || 0),
       stripe.subscriptions.list({ limit: 1 }).then((r: any) => r.total_count || (r.data && r.data.length) || 0),

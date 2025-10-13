@@ -1,0 +1,157 @@
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Real DB enums (Postgres)
+enum SubscriptionStatus {
+  trialing
+  active
+  past_due
+  incomplete
+  canceled
+}
+
+enum DunningStatus {
+  failed
+  reminded
+  recovered
+}
+
+enum RetryAttemptStatus {
+  queued
+  attempted
+  error
+}
+
+enum DunningChannel {
+  email
+  slack
+}
+
+enum RecoverySource {
+  retry
+  backfill
+  manual
+}
+
+model User {
+  id               Int            @id @default(autoincrement())
+  email            String         @unique
+  stripeCustomerId String?        @unique
+  subscriptions    Subscription[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model Subscription {
+  id                   Int                 @id @default(autoincrement())
+  stripeSubscriptionId String              @unique
+  status               SubscriptionStatus
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean             @default(false)
+  userId               Int?
+  user                 User?               @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  @@index([userId])
+}
+
+model DunningCase {
+  id               Int              @id @default(autoincrement())
+  stripeInvoiceId  String           @unique
+  stripeCustomerId String
+  amountDue        Int
+  currency         String
+  status           DunningStatus
+  lastReminderAt   DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  retryAttempts    RetryAttempt[]
+  reminders        DunningReminder[]
+
+  @@index([stripeCustomerId])
+}
+
+model RetryAttempt {
+  id            Int               @id @default(autoincrement())
+  dunningCaseId Int
+  attemptNo     Int
+  runAt         DateTime
+  status        RetryAttemptStatus @default(queued)
+  note          String?
+  dunningCase   DunningCase        @relation(fields: [dunningCaseId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([dunningCaseId])
+}
+
+model DunningReminder {
+  id            Int            @id @default(autoincrement())
+  dunningCaseId Int
+  channel       DunningChannel
+  createdAt     DateTime       @default(now())
+  dunningCase   DunningCase    @relation(fields: [dunningCaseId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([dunningCaseId])
+}
+
+model RecoveryAttribution {
+  id               Int            @id @default(autoincrement())
+  stripeCustomerId String
+  stripeInvoiceId  String
+  amountRecovered  Int
+  currency         String
+  source           RecoverySource
+  createdAt        DateTime       @default(now())
+
+  @@index([stripeCustomerId])
+  @@unique([stripeInvoiceId, source])
+}
+
+model Settings {
+  id                Int      @id @default(1)
+  dunningBaseHours  Int?
+  dunningMaxAttempts Int?
+  safeMode          Boolean  @default(false)
+  updatedAt         DateTime @updatedAt
+}
+
+model StripeEventLog {
+  id       Int      @id @default(autoincrement())
+  type     String
+  raw      String
+  createdAt DateTime @default(now())
+  eventId  String?  @unique
+
+  @@index([type, createdAt])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  actor     String?
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model CspReport {
+  id        Int      @id @default(autoincrement())
+  violated  String?
+  doc       String?
+  blocked   String?
+  ua        String?
+  raw       String?
+  headers   String?
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

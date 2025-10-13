@@ -8,7 +8,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader('Cache-Control', 'no-store');
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    // Standard CSP report body uses either 'csp-report' or 'body'
+    
     const report = (body && (body['csp-report'] || body['csp_report'] || body['body'])) || body || {};
     const rawPayload = report;
     const headers = Object.fromEntries(Object.entries(req.headers || {}));
@@ -22,7 +22,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       headers,
     };
     try { (globalThis as any).__pushCspReport?.(item); } catch {}
-    // Persist if DB is available
+    
     try {
       await (prisma as any)?.cspReport?.create?.({ data: {
         violated: item.violated,

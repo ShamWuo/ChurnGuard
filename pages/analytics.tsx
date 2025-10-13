@@ -44,7 +44,7 @@ export default function Analytics() {
           {metrics.perBucket && (
             <div>
               <h3>Per-{bucket} recovered</h3>
-              {/* simple bars without external libs */}
+              {}
               <div className="grid gap-6">
                 {(() => {
                   const entries = Object.entries(metrics.perBucket as Record<string, number>);

@@ -16,7 +16,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     res.setHeader('RateLimit-Limit', String(rl.limit));
     res.setHeader('RateLimit-Remaining', String(rl.remaining));
     res.setHeader('RateLimit-Reset', String(Math.floor(rl.resetAt/1000)));
-  // Accept price override in the request body (tests) or env STRIPE_PRICE_ID
+  
   const bodyAny: any = req.body || {};
   const price = bodyAny.priceId || process.env.STRIPE_PRICE_ID;
   if (!price) return res.status(500).json({ error: 'No price configured' });

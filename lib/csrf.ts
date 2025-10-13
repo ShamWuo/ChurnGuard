@@ -7,7 +7,7 @@ export function issueCsrf(res: NextApiResponse) {
   const secret = process.env.CSRF_SECRET || process.env.ADMIN_SECRET || 'dev';
   const token = crypto.createHmac('sha256', secret).update(String(Date.now()) + Math.random()).digest('hex');
   const secureFlag = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  // Lax is sufficient for same-site POSTs, Strict could break legitimate flows
+  
   res.setHeader('Set-Cookie', `${COOKIE_NAME}=${token}; HttpOnly; Path=/; SameSite=Lax${secureFlag}`);
   return token;
 }
@@ -23,7 +23,7 @@ export function requireCsrf(req: NextApiRequest, res: NextApiResponse) {
   if (process.env.NODE_ENV === 'test') return true;
   const header = (req.headers['x-csrf-token'] as string) || '';
   const cookie = getCsrfFromCookie(req) || '';
-  // Also accept token via form body for traditional POST forms
+  
   const bodyToken = typeof req.body === 'object' && req.body ? (req.body as any)['x-csrf-token'] : '';
   const token = header || bodyToken || '';
   if (!token || !cookie || token !== cookie) {

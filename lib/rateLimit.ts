@@ -1,12 +1,12 @@
 import { getRedis } from './redis';
 
 export function rateLimit(key: string, max: number, windowMs: number) {
-  // Very small in-memory token bucket for dev/testing with metadata.
+  
   const store: any = (global as any).__rateLimitStore ||= {};
   const now = Date.now();
   const bucket = store[key] ||= { tokens: max, last: now, windowMs };
   const elapsed = now - bucket.last;
-  // refill tokens proportional to time passed
+  
   const refill = Math.floor((elapsed / bucket.windowMs) * max);
   if (refill > 0) { bucket.tokens = Math.min(max, bucket.tokens + refill); bucket.last = now; }
   if (bucket.tokens > 0) {
@@ -20,9 +20,7 @@ export function rateLimit(key: string, max: number, windowMs: number) {
 
 export type RateLimitResult = { ok: boolean; limit: number; remaining: number; resetAt: number };
 
-/**
- * Redis-backed fixed-window rate limit. Falls back to in-memory bucket when Redis is unavailable.
- */
+
 export async function rateLimitAsync(key: string, max: number, windowMs: number): Promise<RateLimitResult> {
   const r = getRedis();
   if (!r) return rateLimit(key, max, windowMs);
@@ -31,7 +29,7 @@ export async function rateLimitAsync(key: string, max: number, windowMs: number)
   try {
     const n = await r.incr(windowKey);
     if (n === 1) {
-      // set px only on first increment
+      
       await r.pexpire(windowKey, windowMs);
     }
     const ttl = await r.pttl(windowKey);

@@ -11,7 +11,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!checkAdminAuth(req)) return res.status(401).json({ error: 'unauthorized' });
   const rl = await rateLimitAsync('admin:cache-purge:' + (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'anon'), 2, 60_000);
   if (!rl.ok) { res.setHeader('RateLimit-Limit', String(rl.limit)); res.setHeader('RateLimit-Remaining', String(rl.remaining)); res.setHeader('RateLimit-Reset', String(Math.floor(rl.resetAt/1000))); return res.status(429).json({ error: 'rate_limited' }); }
-  // include headers on success as well
+  
   res.setHeader('RateLimit-Limit', String(rl.limit));
   res.setHeader('RateLimit-Remaining', String(rl.remaining));
   res.setHeader('RateLimit-Reset', String(Math.floor(rl.resetAt/1000)));

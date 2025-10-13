@@ -6,7 +6,7 @@ import { withSentryTracing } from '../../../lib/sentry';
 async function handler(_req: NextApiRequest, res: NextApiResponse) {
   res.setHeader('Cache-Control', 'no-store');
   try {
-    // quick db check
+    
     await prisma.$queryRaw`SELECT 1`;
   const settings: any = await (prisma as any).settings.findUnique?.({ where: { id: 1 } }) || {};
   const envSafe = process.env.SAFE_MODE === 'true';

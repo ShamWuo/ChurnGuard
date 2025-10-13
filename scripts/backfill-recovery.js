@@ -1,11 +1,8 @@
 #!/usr/bin/env node
-/*
-  Backfill RecoveryAttribution from Stripe invoices.
-  - Dry-run by default. Set BACKFILL_DRY_RUN=false to write.
-  - Filters by since date: BACKFILL_SINCE=2024-01-01
-*/
+
 const { stripe } = require('../lib/stripe');
 const prisma = require('../lib/prisma').default;
+const enums = require('../lib/enums');
 
 async function main() {
   const dry = process.env.BACKFILL_DRY_RUN !== 'false';
@@ -24,7 +21,7 @@ async function main() {
         const stripeCustomerId = typeof inv.customer === 'string' ? inv.customer : inv.customer.id;
         const exists = await prisma.recoveryAttribution.findFirst({ where: { stripeInvoiceId: inv.id } });
         if (!exists && !dry) {
-          await prisma.recoveryAttribution.create({ data: { stripeCustomerId, stripeInvoiceId: inv.id, amountRecovered: inv.amount_paid, currency: (inv.currency||'usd').toUpperCase(), source: 'backfill' } });
+          await prisma.recoveryAttribution.create({ data: { stripeCustomerId, stripeInvoiceId: inv.id, amountRecovered: inv.amount_paid, currency: (inv.currency||'usd').toUpperCase(), source: enums.RecoverySource.backfill } });
           created++;
         }
       }

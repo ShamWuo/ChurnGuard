@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import prisma from "../../../lib/prisma";
+import { DunningChannel, DunningStatus, RetryAttemptStatus } from '../../../lib/enums';
 import { stripe } from "../../../lib/stripe";
 import { sendMail } from "../../../lib/email";
 import { reminderEmail } from "../../../lib/emailTemplates";
@@ -9,7 +10,6 @@ import { captureError } from "../../../lib/sentry";
 import { withLogging } from "../../../lib/logger";
 import { withSentryTracing } from "../../../lib/sentry";
 
-// In production, protect with a secret header/token or use a scheduler with auth.
 export async function processDunning(opts?: { dryRun?: boolean }) {
   const pdb: any = prisma;
   const settings = await pdb.settings.findUnique({ where: { id: 1 } });
@@ -17,7 +17,7 @@ export async function processDunning(opts?: { dryRun?: boolean }) {
   const maxAttempts = (settings?.dunningMaxAttempts && Number(settings.dunningMaxAttempts)) || 5;
   const delays = Array.from({ length: maxAttempts }).map((_, i) => (i === 0 ? 0 : base * Math.pow(2, i - 1)));
 
-  const cases = await pdb.dunningCase.findMany({ where: { status: { in: ["failed", "reminded"] } }, take: 50 });
+  const cases = await pdb.dunningCase.findMany({ where: { status: { in: [DunningStatus.failed, DunningStatus.reminded] } }, take: 50 });
   const metrics: any = (global as any).__dunningMetrics ||= { processed: 0, emailed: 0, slacked: 0, retried: 0 };
   let emailed = 0, slacked = 0, retried = 0;
 
@@ -31,7 +31,6 @@ export async function processDunning(opts?: { dryRun?: boolean }) {
       await pdb.retryAttempt.create({ data: { dunningCaseId: c.id, attemptNo: nextAttemptNo, runAt: nextRunAt } });
     }
 
-    // send email (mocked if SMTP not set)
   const subjectHtml = reminderEmail({ invoiceId: c.stripeInvoiceId, attemptNo: (existing?.attemptNo || 0) + 1, amount: c.amountDue, currency: c.currency });
   const envSafe = process.env.SAFE_MODE === 'true';
   const dbSafe = !!settings?.safeMode;
@@ -39,16 +38,16 @@ export async function processDunning(opts?: { dryRun?: boolean }) {
   if (!opts?.dryRun && !safeMode) {
       await sendMail({ to: process.env.TEST_DUNNING_EMAIL || "owner@example.com", ...subjectHtml });
       await sendSlack(`Invoice ${c.stripeInvoiceId} failed for ${c.stripeCustomerId} (${(c.amountDue / 100).toFixed(2)} ${c.currency})`);
-      await pdb.dunningReminder.create({ data: { dunningCaseId: c.id, channel: "email" } });
-      await pdb.dunningReminder.create({ data: { dunningCaseId: c.id, channel: "slack" } });
-      await pdb.dunningCase.update({ where: { id: c.id }, data: { lastReminderAt: new Date(), status: "reminded" } });
+  await pdb.dunningReminder.create({ data: { dunningCaseId: c.id, channel: DunningChannel.email } });
+  await pdb.dunningReminder.create({ data: { dunningCaseId: c.id, channel: DunningChannel.slack } });
+  await pdb.dunningCase.update({ where: { id: c.id }, data: { lastReminderAt: new Date(), status: DunningStatus.reminded } });
       emailed++;
       slacked++;
     }
   }
 
-  // process due retries
-  const due = await pdb.retryAttempt.findMany({ where: { runAt: { lte: new Date() }, status: "queued" }, take: 50 });
+  
+  const due = await pdb.retryAttempt.findMany({ where: { runAt: { lte: new Date() }, status: RetryAttemptStatus.queued }, take: 50 });
   metrics.processed += cases.length;
   for (const a of due) {
     try {
@@ -59,12 +58,12 @@ export async function processDunning(opts?: { dryRun?: boolean }) {
   const safeMode = envSafe || dbSafe;
   if (!opts?.dryRun && !safeMode) {
         await stripe.invoices.pay(dc.stripeInvoiceId, { off_session: true });
-        await pdb.retryAttempt.update({ where: { id: a.id }, data: { status: "attempted" } });
+  await pdb.retryAttempt.update({ where: { id: a.id }, data: { status: RetryAttemptStatus.attempted } });
       }
       retried++;
-    } catch (err: any) {
-      await pdb.retryAttempt.update({ where: { id: a.id }, data: { status: "error", note: err.message?.slice(0, 200) } });
-    }
+      } catch (err: any) {
+        await pdb.retryAttempt.update({ where: { id: a.id }, data: { status: RetryAttemptStatus.error, note: err.message?.slice(0, 200) } });
+      }
   }
 
   metrics.emailed += emailed;
@@ -76,7 +75,6 @@ export async function processDunning(opts?: { dryRun?: boolean }) {
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).end("Method Not Allowed");
-  // Require a signed request: headers `x-cron-timestamp` and `x-cron-signature`.
   const ts = req.headers["x-cron-timestamp"] as string | undefined;
   const sig = req.headers["x-cron-signature"] as string | undefined;
   const secret = process.env.CRON_SECRET || "dev-secret";

@@ -20,3 +20,17 @@ lib/templates_compiled/
 /.history/node_modules
 playwright-report/
 test-results/
+
+# local dev artifacts and sensitive files
+backup/
+prisma/*.db
+prisma/**/*.db-journal
+docker-compose.dev.yml
+docker-compose.prod.yml
+playwright.config.ts
+scripts/
+docs/
+ci/
+tests/
+__tests__/
+.github/workflows/

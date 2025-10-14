@@ -13,7 +13,11 @@ export default function StripeSetup({ content }: { content: string }) {
 }
 
 export async function getStaticProps() {
-  const file = path.join(process.cwd(), 'docs', 'STRIPE_SETUP.md');
-  const content = fs.readFileSync(file, 'utf8');
-  return { props: { content } };
+  try {
+    const file = path.join(process.cwd(), 'docs', 'STRIPE_SETUP.md');
+    const content = fs.readFileSync(file, 'utf8');
+    return { props: { content } };
+  } catch (e) {
+    return { props: { content: 'Documentation not available in this distribution.' } };
+  }
 }

@@ -30,7 +30,7 @@ This Code of Conduct applies within all community spaces, and also applies when 
 
 ## Contact
 
-If you are subject to or witness unacceptable behavior, or have any other concerns, please contact the maintainers at `security@churnguard.example` or open an issue marked **private**.
+If you are subject to or witness unacceptable behavior, or have any other concerns, please contact the maintainers at `security@dunnr.example` or open an issue marked **private**.
 
 ## License and Attribution
 

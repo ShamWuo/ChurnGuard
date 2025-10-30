@@ -1,6 +1,6 @@
-# ChurnGuard
+# Dunnr
 
-Recover lost revenue from failed payments and reduce involuntary churn for Stripe-powered SaaS. ChurnGuard ships automated dunning (retries + reminders), recovery attribution, a secure admin console, and production-ready Stripe webhook handling.
+Recover lost revenue from failed payments and reduce involuntary churn for Stripe-powered SaaS. Dunnr ships automated dunning (retries + reminders), recovery attribution, a secure admin console, and production-ready Stripe webhook handling.
 
 Open source
 -----------
@@ -267,8 +267,8 @@ how to wire a managed Postgres instance.
 Build and run locally:
 
 ```powershell
-docker build -t churnguard .
-docker run --rm -p 3000:3000 --env-file .env.local churnguard
+docker build -t dunnr .
+docker run --rm -p 3000:3000 --env-file .env.local dunnr
 ```
 
 CI smoke: a GitHub Actions workflow `docker-build-smoke.yml` will build the production image and run basic readiness/health checks on merges to `main`.

@@ -3,9 +3,15 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
-- Productization: admin safety, export, demo seed, CI, e2e guards for Stripe.
-- Docker: production Dockerfile hardened and smoke workflow added.
-- Docs: `PRODUCTION_CHECKLIST.md`, `CI_SECRETS.md` updates, README improvements.
+- (Unreleased changes to be documented here.)
+
+## [1.0.2] - 2025-10-30
+### Productization
+- Admin safety, export, demo seed, CI, e2e guards for Stripe.
+### Docker
+- Production Dockerfile hardened and smoke workflow added.
+### Docs
+- `PRODUCTION_CHECKLIST.md`, `CI_SECRETS.md` updates, README improvements.
 
 ## [1.0.1] - 2025-10-05
 ### Fixed
@@ -15,7 +21,7 @@ All notable changes to this project will be documented in this file.
 
 ## [1.0.0] - 2025-10-04
 ### Added
-- Initial public release under new name ChurnGuard.
+- Initial public release under new name Dunnr.
 - Automated dunning processor (retry attempts, reminders, safe mode).
 - Stripe webhook handlers (invoice + subscription lifecycle).
 - Admin console (auth, CSRF, rate limiting, audit log export, health dashboards).
@@ -26,7 +32,7 @@ All notable changes to this project will be documented in this file.
 - Postgres migration documentation and environment template.
 
 ### Changed
-- Project renamed from "Stripe Churn Deflection" to "ChurnGuard" for branding clarity.
+- Project renamed from "Stripe Churn Deflection" to "Dunnr" for branding clarity.
 
 ### Security / Hardening
 - Safe mode flag to prevent side effects in first deploys.

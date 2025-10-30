@@ -1,9 +1,9 @@
-## ChurnGuard v1.0.0 Release Notes
+## Dunnr v1.0.0 Release Notes
 
 Release date: 2025-10-04
 
 ### Overview
-ChurnGuard (initial public release) delivers an operationally focused churn deflection layer for Stripe-based SaaS products: automated dunning, recovery attribution, and an admin console with observability and safety features.
+Dunnr (initial public release) delivers an operationally focused churn deflection layer for Stripe-based SaaS products: automated dunning, recovery attribution, and an admin console with observability and safety features.
 
 ### Feature Highlights
 - Stripe invoice & subscription webhook processing
@@ -18,13 +18,13 @@ ChurnGuard (initial public release) delivers an operationally focused churn defl
 - CI (Jest + Playwright; conditional Postgres migration)
 
 ### Breaking Changes
-None relative to the pre-release internal version aside from the package/repo rename to `ChurnGuard`.
+None relative to the pre-release internal version aside from the package/repo rename to `Dunnr`.
 
 ### Upgrade Notes
 If you used the pre-release name:
-1. Update any Docker image references: `stripe-churn` -> `churnguard`.
-2. Replace old GitHub workflow badge URLs with `ShamWuo/ChurnGuard`.
-3. If you pinned the package name internally, update to `churnguard`.
+1. Update any Docker image references: `stripe-churn` -> `dunnr`.
+2. Replace old GitHub workflow badge URLs with `ShamWuo/ChurnGuard` (repo rename on GitHub is separate).
+3. If you pinned the package name internally, update to `dunnr`.
 
 ### Environment Recap
 Required for production:

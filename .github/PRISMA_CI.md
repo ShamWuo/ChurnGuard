@@ -6,8 +6,8 @@ Problems you may see
 
 Recommendations
 1. Don't develop from a OneDrive-synced folder.
-   - Clone the repository to a local folder outside OneDrive. Example: `C:\repos\ChurnGuard`.
-   - Or use WSL and keep the project inside the Linux filesystem (`/home/<user>/projects/ChurnGuard`).
+   - Clone the repository to a local folder outside OneDrive. Example: `C:\repos\Dunnr`.
+   - Or use WSL and keep the project inside the Linux filesystem (`/home/<user>/projects/Dunnr`).
 
 2. Ensure CI installs system dependencies before running `npx prisma generate`.
    - On Ubuntu runners: install `build-essential`, `libssl-dev`, and `libpq-dev` (if using Postgres).

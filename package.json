@@ -1,8 +1,8 @@
 {
-	"name": "churnguard",
-	"version": "1.0.1",
+	"name": "dunnr",
+	"version": "1.0.2",
 	"private": false,
-	"description": "ChurnGuard – Stripe churn deflection: automated dunning, recovery analytics, admin console.",
+	"description": "Dunnr – Stripe churn deflection: automated dunning, recovery analytics, admin console.",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -33,7 +33,7 @@
 		"precompile-templates": "node scripts/precompile-templates.js",
 		"ci": "npm run precompile-templates && npm test",
 		"release:patch": "npm version patch -m \"chore(release): %s\" && git push --follow-tags",
-		"docker:prod": "docker build -t churnguard:prod .",
+		"docker:prod": "docker build -t dunnr:prod .",
 		"e2e": "npm run build:clean && playwright test",
 		"e2e:run": "playwright test",
 		"e2e:dev": "cross-env E2E_USE_DEV=true npx playwright test",

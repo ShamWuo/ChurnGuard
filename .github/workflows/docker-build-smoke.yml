@@ -33,24 +33,24 @@ jobs:
           npm run precompile-templates || true
           npm run build
       - name: Build Docker image
-        run: docker build -t churnguard:prod .
+        run: docker build -t dunnr:prod .
       - name: Run container
         run: |
-          docker run --rm -d --name churnguard-prod -p 3000:3000 \
+          docker run --rm -d --name dunnr-prod -p 3000:3000 \
             -e DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres \
             -e ADMIN_SECRET=secret123 -e CSRF_SECRET=csrf123 -e CRON_SECRET=cronsecret123 \
-            -e NODE_ENV=production churnguard:prod
+            -e NODE_ENV=production dunnr:prod
       - name: Wait for readiness
         run: |
           for i in $(seq 1 60); do
             if curl -sS -f http://localhost:3000/api/ready >/dev/null 2>&1; then
               echo "ready"; exit 0;
             fi; echo "waiting..."; sleep 1;
-          done; docker logs churnguard-prod || true; exit 1
+          done; docker logs dunnr-prod || true; exit 1
       - name: Run smoke endpoints
         run: |
           curl -sS http://localhost:3000/api/health
           curl -sS http://localhost:3000/api/version
       - name: Stop container
         if: always()
-        run: docker stop churnguard-prod || true
+        run: docker stop dunnr-prod || true
